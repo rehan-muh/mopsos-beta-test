@@ -7,7 +7,7 @@ section: morphology
 <section class="hero card">
   <p class="kicker">Greek NLP Workspace</p>
   <h1>Greek Morphology + Ending Filter</h1>
-  <p class="lead">Upload, filter, persist, and re-use your CSV data with a streamlined visual workflow.</p>
+  <p class="lead">Analysis and visualization of ancient Greek morphology.</p>
 </section>
 
 <div class="stats-grid" id="statsGrid">
