@@ -150,6 +150,17 @@ title: Greek Morphology + Ending Filter
         <option value="alpha">Alphabetical</option>
       </select>
     </div>
+    <div class="field">
+      <label for="vizType"><strong>Plot type</strong></label>
+      <select id="vizType">
+        <option value="bars">Bars</option>
+        <option value="percent">Percent bars</option>
+        <option value="table">Compact table</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="grid-3">
     <div class="field startup-actions">
       <button id="btnViz" class="btn btn-primary" disabled>Render visualization</button>
     </div>
@@ -158,7 +169,37 @@ title: Greek Morphology + Ending Filter
   <div id="vizWrap" class="viz-wrap"></div>
 </div>
 
-## 5. Download filtered CSV
+## 5. Analysis dropdowns
+
+<div class="card">
+  <div class="grid-3">
+    <div class="field">
+      <label for="analysisType"><strong>Analysis</strong></label>
+      <select id="analysisType">
+        <option value="summary">Dataset summary</option>
+        <option value="valueCounts">Value counts (one column)</option>
+        <option value="crossTab">Cross-tab (two columns)</option>
+        <option value="missingness">Missingness report</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="analysisColA"><strong>Primary column</strong></label>
+      <select id="analysisColA" disabled></select>
+    </div>
+    <div class="field">
+      <label for="analysisColB"><strong>Secondary column</strong></label>
+      <select id="analysisColB" disabled></select>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button id="btnRunAnalysis" class="btn btn-primary" disabled>Run analysis</button>
+  </div>
+
+  <div id="analysisWrap" class="analysis-wrap"></div>
+</div>
+
+## 6. Download filtered CSV
 
 <div class="card">
   <div class="field">

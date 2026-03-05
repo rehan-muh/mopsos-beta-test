@@ -23,7 +23,8 @@
     previewSearch: byId("previewSearch"), saveSlotName: byId("saveSlotName"), savedDatasets: byId("savedDatasets"), btnSaveLocal: byId("btnSaveLocal"), btnLoadLocal: byId("btnLoadLocal"),
     btnDeleteLocal: byId("btnDeleteLocal"), statRows: byId("statRows"), statMorph: byId("statMorph"), statFinal: byId("statFinal"),
     startupSavedDatasets: byId("startupSavedDatasets"), btnStartupLoad: byId("btnStartupLoad"), vizDataset: byId("vizDataset"), vizPrimary: byId("vizPrimary"), vizSecondary: byId("vizSecondary"),
-    vizTopN: byId("vizTopN"), vizSort: byId("vizSort"), btnViz: byId("btnViz"), vizWrap: byId("vizWrap")
+    vizTopN: byId("vizTopN"), vizSort: byId("vizSort"), vizType: byId("vizType"), btnViz: byId("btnViz"), vizWrap: byId("vizWrap"),
+    analysisType: byId("analysisType"), analysisColA: byId("analysisColA"), analysisColB: byId("analysisColB"), btnRunAnalysis: byId("btnRunAnalysis"), analysisWrap: byId("analysisWrap")
   };
 
   function byId(id) { return document.getElementById(id); }
@@ -157,7 +158,15 @@
     }
   }
 
-  function writeSavedDatasets(payload) { localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); }
+  function writeSavedDatasets(payload) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      return true;
+    } catch (err) {
+      status(`Could not save dataset to browser storage (${err?.name || "storage error"}). Try deleting old saved datasets.`);
+      return false;
+    }
+  }
 
   function refreshSavedDatasetSelects() {
     const datasets = readSavedDatasets();
@@ -191,17 +200,19 @@
       rowCount: state.rawRows.length,
       csv: toCsv(state.rawRows, state.columns)
     };
-    writeSavedDatasets(payload);
-    refreshSavedDatasetSelects();
+    const ok = writeSavedDatasets(payload);
+    if (ok) refreshSavedDatasetSelects();
+    return ok;
   }
 
   function saveCurrentDataset() {
     if (!state.rawRows.length) return status("Load a CSV before saving a dataset.");
     const slot = safeSlug(el.saveSlotName.value || state.fileName || "dataset");
-    saveDataset(slot);
-    el.savedDatasets.value = slot;
-    el.startupSavedDatasets.value = slot;
-    status(`Saved dataset '${slot}' locally (${state.rawRows.length} rows).`);
+    if (saveDataset(slot)) {
+      el.savedDatasets.value = slot;
+      el.startupSavedDatasets.value = slot;
+      status(`Saved dataset '${slot}' locally (${state.rawRows.length} rows).`);
+    }
   }
 
   function deleteSavedDataset() {
@@ -209,9 +220,11 @@
     if (!slot) return;
     const payload = readSavedDatasets();
     delete payload[slot];
-    writeSavedDatasets(payload);
-    refreshSavedDatasetSelects();
-    status(`Deleted saved dataset '${slot}'.`);
+    const ok = writeSavedDatasets(payload);
+    if (ok) {
+      refreshSavedDatasetSelects();
+      status(`Deleted saved dataset '${slot}'.`);
+    }
   }
 
   function loadSavedDataset(slot, fromStartup = false) {
@@ -423,12 +436,12 @@
   function populateVizColumns() {
     const rows = getVizBaseRows();
     const cols = rows.length ? Object.keys(rows[0]) : [];
-    for (const select of [el.vizPrimary, el.vizSecondary]) {
+    for (const select of [el.vizPrimary, el.vizSecondary, el.analysisColA, el.analysisColB]) {
       const cur = select.value;
       select.innerHTML = "";
       const blank = document.createElement("option");
       blank.value = "";
-      blank.textContent = select === el.vizSecondary ? "(none)" : "Choose column...";
+      blank.textContent = (select === el.vizSecondary || select === el.analysisColB) ? "(none)" : "Choose column...";
       select.appendChild(blank);
       for (const c of cols) {
         const o = document.createElement("option");
@@ -440,6 +453,7 @@
       select.disabled = !cols.length;
     }
     el.btnViz.disabled = !(rows.length && el.vizPrimary.value);
+    el.btnRunAnalysis.disabled = !rows.length;
   }
 
   function renderVisualization() {
@@ -454,8 +468,8 @@
     const map = new Map();
     for (const r of rows) {
       const p = normStr(r[primary]) || "(blank)";
-      const s = secondary ? (normStr(r[secondary]) || "(blank)") : null;
-      const key = secondary ? `${p} ⟶ ${s}` : p;
+      const sVal = secondary ? (normStr(r[secondary]) || "(blank)") : null;
+      const key = secondary ? `${p} ⟶ ${sVal}` : p;
       map.set(key, (map.get(key) || 0) + 1);
     }
 
@@ -468,15 +482,99 @@
     const topN = Math.max(1, Number.parseInt(el.vizTopN.value, 10) || 20);
     entries = entries.slice(0, topN);
     const max = Math.max(...entries.map(x => x[1]), 1);
+    const vizType = el.vizType.value;
 
     let html = `<div class="small-muted" style="margin-bottom:.6rem;">Showing ${entries.length} categories grouped by <strong>${escapeHtml(primary)}</strong>${secondary ? ` then <strong>${escapeHtml(secondary)}</strong>` : ""}.</div>`;
-    for (const [label, value] of entries) {
-      const w = Math.max(2, Math.round((value / max) * 100));
-      html += `<div class="viz-item"><div class="viz-row"><span class="viz-label" title="${escapeHtml(label)}">${escapeHtml(label)}</span><div class="viz-bar" style="width:${w}%"></div><span class="viz-value">${value}</span></div></div>`;
+
+    if (vizType === "table") {
+      html += `<table class="mini-table"><thead><tr><th>Category</th><th>Count</th><th>Percent</th></tr></thead><tbody>`;
+      const total = entries.reduce((a, b) => a + b[1], 0) || 1;
+      for (const [label, value] of entries) {
+        html += `<tr><td>${escapeHtml(label)}</td><td>${value}</td><td>${((value/total)*100).toFixed(2)}%</td></tr>`;
+      }
+      html += `</tbody></table>`;
+    } else {
+      const total = entries.reduce((a, b) => a + b[1], 0) || 1;
+      for (const [label, value] of entries) {
+        const base = vizType === "percent" ? Math.round((value / total) * 100) : Math.round((value / max) * 100);
+        const w = Math.max(2, base);
+        const display = vizType === "percent" ? `${((value/total)*100).toFixed(2)}%` : `${value}`;
+        html += `<div class="viz-item"><div class="viz-row"><span class="viz-label" title="${escapeHtml(label)}">${escapeHtml(label)}</span><div class="viz-bar" style="width:${w}%"></div><span class="viz-value">${display}</span></div></div>`;
+      }
     }
+
     el.vizWrap.innerHTML = html;
   }
 
+
+  function runAnalysis() {
+    const rows = getVizBaseRows();
+    const mode = el.analysisType.value;
+    const colA = el.analysisColA.value;
+    const colB = el.analysisColB.value;
+
+    if (!rows.length) {
+      el.analysisWrap.innerHTML = `<div class="small-muted">No data available for analysis.</div>`;
+      return;
+    }
+
+    if (mode === "summary") {
+      const totalCells = rows.length * (Object.keys(rows[0] || {}).length || 0);
+      const nonEmpty = rows.reduce((acc, r) => acc + Object.values(r).filter(v => normStr(v)).length, 0);
+      const density = totalCells ? ((nonEmpty / totalCells) * 100).toFixed(1) : "0.0";
+      el.analysisWrap.innerHTML = `
+        <div class="analysis-grid">
+          <div class="analysis-card"><span class="label">Rows</span><div class="value">${rows.length}</div></div>
+          <div class="analysis-card"><span class="label">Columns</span><div class="value">${Object.keys(rows[0] || {}).length}</div></div>
+          <div class="analysis-card"><span class="label">Non-empty cells</span><div class="value">${nonEmpty}</div></div>
+          <div class="analysis-card"><span class="label">Data density</span><div class="value">${density}%</div></div>
+        </div>`;
+      return;
+    }
+
+    if (!colA) {
+      el.analysisWrap.innerHTML = `<div class="small-muted">Choose a primary column for this analysis.</div>`;
+      return;
+    }
+
+    if (mode === "missingness") {
+      const missing = rows.filter(r => !normStr(r[colA])).length;
+      const pct = ((missing / rows.length) * 100).toFixed(2);
+      el.analysisWrap.innerHTML = `<div class="analysis-card"><span class="label">Missing in ${escapeHtml(colA)}</span><div class="value">${missing} / ${rows.length} (${pct}%)</div></div>`;
+      return;
+    }
+
+    if (mode === "valueCounts") {
+      const freq = new Map();
+      for (const r of rows) {
+        const k = normStr(r[colA]) || "(blank)";
+        freq.set(k, (freq.get(k) || 0) + 1);
+      }
+      const entries = [...freq.entries()].sort((a,b)=>b[1]-a[1]).slice(0, 20);
+      let html = `<div class="small-muted">Top ${entries.length} values in <strong>${escapeHtml(colA)}</strong></div><table class="mini-table"><thead><tr><th>Value</th><th>Count</th></tr></thead><tbody>`;
+      for (const [k,v] of entries) html += `<tr><td>${escapeHtml(k)}</td><td>${v}</td></tr>`;
+      html += `</tbody></table>`;
+      el.analysisWrap.innerHTML = html;
+      return;
+    }
+
+    if (mode === "crossTab") {
+      if (!colB) {
+        el.analysisWrap.innerHTML = `<div class="small-muted">Choose a secondary column for cross-tab.</div>`;
+        return;
+      }
+      const freq = new Map();
+      for (const r of rows) {
+        const k = `${normStr(r[colA]) || "(blank)"} × ${normStr(r[colB]) || "(blank)"}`;
+        freq.set(k, (freq.get(k) || 0) + 1);
+      }
+      const entries = [...freq.entries()].sort((a,b)=>b[1]-a[1]).slice(0, 25);
+      let html = `<div class="small-muted">Top cross-tab combinations for <strong>${escapeHtml(colA)}</strong> and <strong>${escapeHtml(colB)}</strong></div><table class="mini-table"><thead><tr><th>Combination</th><th>Count</th></tr></thead><tbody>`;
+      for (const [k,v] of entries) html += `<tr><td>${escapeHtml(k)}</td><td>${v}</td></tr>`;
+      html += `</tbody></table>`;
+      el.analysisWrap.innerHTML = html;
+    }
+  }
   function onDropdownChange(evt) {
     if (state.updatingWidgets) return;
     const idx = state.morphOrder.indexOf(evt.target.dataset.col);
@@ -520,8 +618,8 @@
         state.morphCols = PREFERRED_MORPH_COLS.filter(c => cols.includes(c));
 
         if (!fromSaved && rows.length) {
-          saveDataset(LAST_AUTO_SLOT);
-          el.startupSavedDatasets.value = LAST_AUTO_SLOT;
+          const autoSaved = saveDataset(LAST_AUTO_SLOT);
+          if (autoSaved) el.startupSavedDatasets.value = LAST_AUTO_SLOT;
         }
 
         if (!state.morphCols.length) {
@@ -576,10 +674,17 @@
   el.btnStartupLoad.addEventListener("click", () => loadSavedDataset(el.startupSavedDatasets.value, true));
   el.vizDataset.addEventListener("change", populateVizColumns);
   el.vizPrimary.addEventListener("change", () => { el.btnViz.disabled = !el.vizPrimary.value; });
+  el.vizType.addEventListener("change", renderVisualization);
+  el.vizSort.addEventListener("change", renderVisualization);
   el.btnViz.addEventListener("click", renderVisualization);
+  el.analysisType.addEventListener("change", runAnalysis);
+  el.analysisColA.addEventListener("change", runAnalysis);
+  el.analysisColB.addEventListener("change", runAnalysis);
+  el.btnRunAnalysis.addEventListener("click", runAnalysis);
 
   refreshSavedDatasetSelects();
   updateButtonStates();
   updateStats();
   renderVisualization();
+  runAnalysis();
 })();

@@ -76,3 +76,12 @@ table.preview th { position: sticky; top: 0; background: #f8fafc; z-index: 1; }
 .viz-label { color: #374151; font-size: .88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .viz-bar { height: 12px; border-radius: 999px; background: linear-gradient(90deg, #4f46e5, #38bdf8); }
 .viz-value { font-weight: 600; font-size: .85rem; }
+
+.analysis-wrap { border: 1px solid var(--line); border-radius: 12px; background: #fff; padding: .8rem; min-height: 120px; margin-top: .7rem; }
+.analysis-grid { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: .55rem; }
+.analysis-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: .55rem; }
+.analysis-card .label { color: var(--muted); font-size: .78rem; display: block; }
+.analysis-card .value { font-weight: 700; color: #1e293b; }
+.mini-table { width: 100%; border-collapse: collapse; margin-top: .55rem; font-size: .85rem; }
+.mini-table th, .mini-table td { border-bottom: 1px solid #eef2f7; text-align: left; padding: .35rem; }
+.mini-table th { background: #f8fafc; }
