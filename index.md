@@ -1,6 +1,7 @@
 ---
 layout: default
-title: Greek Morphology + Ending Filter
+title: Morphology
+section: morphology
 ---
 
 <section class="hero card">

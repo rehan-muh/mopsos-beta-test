@@ -1,5 +1,5 @@
-title: Greek Morphology + Ending Filter
-description: Lightweight CSV morphology/ending filter (client-side)
+title: Greek NLP Tools
+description: A growing suite of Ancient Greek NLP tools for syntax, prosody, and morphology.
 markdown: kramdown
 theme: null
 plugins: []
