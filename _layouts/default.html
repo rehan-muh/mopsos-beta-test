@@ -8,18 +8,30 @@
   <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
 </head>
 <body>
+  <div class="bg-glow bg-glow-left" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-right" aria-hidden="true"></div>
+
   <header class="site-header">
-    <div class="container header-inner">
-      <a class="site-brand" href="{{ '/index.html' | relative_url }}">Greek NLP Tools</a>
-      <nav class="site-nav" aria-label="Main navigation">
-        <a href="{{ '/syntax.html' | relative_url }}" class="nav-link{% if page.section == 'syntax' %} is-active{% endif %}">Syntax</a>
-        <a href="{{ '/prosody.html' | relative_url }}" class="nav-link{% if page.section == 'prosody' %} is-active{% endif %}">Prosody</a>
-        <a href="{{ '/index.html' | relative_url }}" class="nav-link{% if page.section == 'morphology' %} is-active{% endif %}">Morphology</a>
-      </nav>
+    <div class="container header-shell">
+      <div class="header-inner">
+        <a class="site-brand" href="{{ '/index.html' | relative_url }}">
+          <span class="brand-mark" aria-hidden="true">Γ</span>
+          <span class="brand-copy">
+            <strong>Greek NLP Tools</strong>
+            <small>Digital Philology Workbench</small>
+          </span>
+        </a>
+
+        <nav class="site-nav" aria-label="Main navigation">
+          <a href="{{ '/syntax.html' | relative_url }}" class="nav-link{% if page.section == 'syntax' %} is-active{% endif %}">Syntax</a>
+          <a href="{{ '/prosody.html' | relative_url }}" class="nav-link{% if page.section == 'prosody' %} is-active{% endif %}">Prosody</a>
+          <a href="{{ '/index.html' | relative_url }}" class="nav-link{% if page.section == 'morphology' %} is-active{% endif %}">Morphology</a>
+        </nav>
+      </div>
     </div>
   </header>
 
-  <main class="container">
+  <main class="container site-main">
     {{ content }}
   </main>
 
