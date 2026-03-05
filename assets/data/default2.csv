@@ -1,0 +1,6 @@
+pos,person,number,tense,mood,voice,gender,case,form,book,work
+n,3,s,-,-,-,m,n,ανηρ,1,Histories
+v,3,p,a,i,a,-,-,εγραψαν,2,Histories
+a,-,p,-,-,-,f,n,καλαι,3,Tragedy
+v,-,s,p,n,m,-,-,γραφειν,4,Philosophy
+r,-,-,-,-,-,-,-,εν,5,NT

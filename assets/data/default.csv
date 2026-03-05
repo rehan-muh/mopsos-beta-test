@@ -1,0 +1,5 @@
+pos,person,number,tense,mood,voice,gender,case,form,book,work
+n,3,s,-,-,-,m,n,λογος,1,Iliad
+a,-,s,-,-,-,m,n,καλος,1,Iliad
+v,1,s,p,i,a,-,-,λυω,1,Iliad
+v,-,s,p,n,m,-,-,λυειν,2,Odyssey
