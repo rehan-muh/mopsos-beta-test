@@ -3,36 +3,66 @@ layout: default
 title: Greek Morphology + Ending Filter
 ---
 
-# Greek Morphology + Ending Filter
+<section class="hero card">
+  <p class="kicker">Greek NLP Workspace</p>
+  <h1>Greek Morphology + Ending Filter</h1>
+  <p class="lead">Upload, filter, persist, and re-use your CSV data with a streamlined visual workflow.</p>
+</section>
 
-A lightweight browser tool for:
-- **sequential morphology filtering** (`pos`, `person`, `number`, `tense`, `mood`, `voice`, `gender`, `case`)
-- **Greek ending filtering** (e.g. `οις`, `οισι`, `οισιν`)
-- **accent-insensitive matching**
-- optional **binary indicator column**
-- CSV **download** of the filtered output
+<div class="stats-grid" id="statsGrid">
+  <div class="stat-card"><span class="stat-label">Rows loaded</span><strong id="statRows">0</strong></div>
+  <div class="stat-card"><span class="stat-label">After morphology</span><strong id="statMorph">0</strong></div>
+  <div class="stat-card"><span class="stat-label">After ending filter</span><strong id="statFinal">0</strong></div>
+</div>
 
-> Everything runs client-side in your browser. No server/database needed.
-
----
-
-## 1. Load CSV
+## 1. Start with a dataset
 
 <div class="card">
+  <div class="grid-2">
+    <div class="field">
+      <label for="startupSavedDatasets"><strong>Use an already uploaded dataset</strong></label>
+      <select id="startupSavedDatasets"></select>
+    </div>
+    <div class="field startup-actions">
+      <button id="btnStartupLoad" class="btn btn-primary" disabled>Use selected saved dataset</button>
+    </div>
+  </div>
+
+  <div class="divider">or upload a new CSV</div>
+
   <label for="csvFile"><strong>CSV file</strong></label>
   <input id="csvFile" type="file" accept=".csv,text/csv" />
   <div class="help">Expected columns include morphology fields such as <code>pos</code>, <code>person</code>, <code>number</code>, <code>tense</code>, <code>mood</code>, <code>voice</code>, <code>gender</code>, <code>case</code> (any subset is fine).</div>
   <div id="loadStatus" class="status muted">No file loaded yet.</div>
 </div>
 
----
+## 1b. Save / Manage datasets
+
+<div class="card">
+  <div class="grid-2">
+    <div class="field">
+      <label for="saveSlotName"><strong>Save slot name</strong></label>
+      <input id="saveSlotName" type="text" value="my_greek_dataset" placeholder="e.g. attic_nouns_v1" />
+    </div>
+    <div class="field">
+      <label for="savedDatasets"><strong>Saved datasets</strong></label>
+      <select id="savedDatasets"></select>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button id="btnSaveLocal" class="btn btn-primary" disabled>Save current CSV in browser</button>
+    <button id="btnLoadLocal" class="btn" disabled>Load saved dataset</button>
+    <button id="btnDeleteLocal" class="btn btn-warn" disabled>Delete saved dataset</button>
+  </div>
+</div>
 
 ## 2. Morphology filter (sequential)
 
 <div class="card">
   <label class="inline">
     <input type="checkbox" id="autoLockSingletons" checked />
-    Auto-lock forced values (e.g. person = `-`)
+    Auto-lock forced values (e.g. person = <code>-</code>)
   </label>
 
   <div id="morphControls" class="grid-2"></div>
@@ -42,8 +72,6 @@ A lightweight browser tool for:
     <button id="btnReset" class="btn btn-warn" disabled>Reset selections</button>
   </div>
 </div>
-
----
 
 ## 3. Ending filter
 
@@ -87,9 +115,91 @@ A lightweight browser tool for:
   </div>
 </div>
 
----
+## 4. Visualization Studio
 
-## 4. Download filtered CSV
+<div class="card">
+  <div class="grid-3">
+    <div class="field">
+      <label for="vizDataset"><strong>Dataset</strong></label>
+      <select id="vizDataset">
+        <option value="raw">Raw data</option>
+        <option value="morph">Morphology-filtered</option>
+        <option value="final">Ending-filtered</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="vizPrimary"><strong>Group by</strong></label>
+      <select id="vizPrimary" disabled></select>
+    </div>
+    <div class="field">
+      <label for="vizSecondary"><strong>Then by (optional)</strong></label>
+      <select id="vizSecondary" disabled></select>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div class="field">
+      <label for="vizTopN"><strong>Top categories</strong></label>
+      <input id="vizTopN" type="text" value="20" />
+    </div>
+    <div class="field">
+      <label for="vizSort"><strong>Sort</strong></label>
+      <select id="vizSort">
+        <option value="desc">Largest first</option>
+        <option value="asc">Smallest first</option>
+        <option value="alpha">Alphabetical</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="vizType"><strong>Plot type</strong></label>
+      <select id="vizType">
+        <option value="bars">Bars</option>
+        <option value="percent">Percent bars</option>
+        <option value="table">Compact table</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div class="field startup-actions">
+      <button id="btnViz" class="btn btn-primary" disabled>Render visualization</button>
+    </div>
+  </div>
+
+  <div id="vizWrap" class="viz-wrap"></div>
+</div>
+
+## 5. Analysis dropdowns
+
+<div class="card">
+  <div class="grid-3">
+    <div class="field">
+      <label for="analysisType"><strong>Analysis</strong></label>
+      <select id="analysisType">
+        <option value="summary">Dataset summary</option>
+        <option value="valueCounts">Value counts (one column)</option>
+        <option value="crossTab">Cross-tab (two columns)</option>
+        <option value="missingness">Missingness report</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="analysisColA"><strong>Primary column</strong></label>
+      <select id="analysisColA" disabled></select>
+    </div>
+    <div class="field">
+      <label for="analysisColB"><strong>Secondary column</strong></label>
+      <select id="analysisColB" disabled></select>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button id="btnRunAnalysis" class="btn btn-primary" disabled>Run analysis</button>
+  </div>
+
+  <div id="analysisWrap" class="analysis-wrap"></div>
+</div>
+
+## 6. Download filtered CSV
 
 <div class="card">
   <div class="field">
@@ -100,13 +210,7 @@ A lightweight browser tool for:
   <div class="btn-row">
     <button id="btnDownload" class="btn btn-success" disabled>3) Download current dataframe (.csv)</button>
   </div>
-
-  <div class="help">
-    The website cannot write directly to Google Drive or arbitrary local folders (unlike Colab), but it can generate a CSV download.
-  </div>
 </div>
-
----
 
 ## Status / Preview
 
@@ -118,6 +222,10 @@ A lightweight browser tool for:
   <div class="preview-header">
     <strong>Preview (first rows)</strong>
     <span id="previewMeta" class="muted"></span>
+  </div>
+  <div class="field">
+    <label for="previewSearch"><strong>Quick search in preview</strong></label>
+    <input id="previewSearch" type="text" placeholder="Type to filter preview rows…" />
   </div>
   <div id="tableWrap" class="table-wrap"></div>
 </div>
