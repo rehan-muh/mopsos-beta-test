@@ -3,18 +3,22 @@ layout: default
 title: Greek Morphology + Ending Filter
 ---
 
-# Greek Morphology + Ending Filter
+<section class="hero card">
+  <p class="kicker">Greek NLP Workspace</p>
+  <h1>Greek Morphology + Ending Filter</h1>
+  <p class="lead">Upload, filter, persist, and re-use your CSV data directly in the browser.</p>
+  <div class="hero-chips">
+    <span class="chip">Sequential morphology filters</span>
+    <span class="chip">Accent-insensitive endings</span>
+    <span class="chip">Persistent local saves</span>
+  </div>
+</section>
 
-A lightweight browser tool for:
-- **sequential morphology filtering** (`pos`, `person`, `number`, `tense`, `mood`, `voice`, `gender`, `case`)
-- **Greek ending filtering** (e.g. `οις`, `οισι`, `οισιν`)
-- **accent-insensitive matching**
-- optional **binary indicator column**
-- CSV **download** of the filtered output
-
-> Everything runs client-side in your browser. No server/database needed.
-
----
+<div class="stats-grid" id="statsGrid">
+  <div class="stat-card"><span class="stat-label">Rows loaded</span><strong id="statRows">0</strong></div>
+  <div class="stat-card"><span class="stat-label">After morphology</span><strong id="statMorph">0</strong></div>
+  <div class="stat-card"><span class="stat-label">After ending filter</span><strong id="statFinal">0</strong></div>
+</div>
 
 ## 1. Load CSV
 
@@ -25,14 +29,34 @@ A lightweight browser tool for:
   <div id="loadStatus" class="status muted">No file loaded yet.</div>
 </div>
 
----
+## 1b. Save / Restore Dataset (persistent)
+
+<div class="card">
+  <div class="grid-2">
+    <div class="field">
+      <label for="saveSlotName"><strong>Save slot name</strong></label>
+      <input id="saveSlotName" type="text" value="my_greek_dataset" placeholder="e.g. attic_nouns_v1" />
+    </div>
+    <div class="field">
+      <label for="savedDatasets"><strong>Saved datasets</strong></label>
+      <select id="savedDatasets"></select>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button id="btnSaveLocal" class="btn btn-primary" disabled>Save current CSV in browser</button>
+    <button id="btnLoadLocal" class="btn" disabled>Load saved dataset</button>
+    <button id="btnDeleteLocal" class="btn btn-warn" disabled>Delete saved dataset</button>
+  </div>
+  <div class="help">Saved datasets are stored in your browser local storage so you can re-open them later on the same browser/device.</div>
+</div>
 
 ## 2. Morphology filter (sequential)
 
 <div class="card">
   <label class="inline">
     <input type="checkbox" id="autoLockSingletons" checked />
-    Auto-lock forced values (e.g. person = `-`)
+    Auto-lock forced values (e.g. person = <code>-</code>)
   </label>
 
   <div id="morphControls" class="grid-2"></div>
@@ -42,8 +66,6 @@ A lightweight browser tool for:
     <button id="btnReset" class="btn btn-warn" disabled>Reset selections</button>
   </div>
 </div>
-
----
 
 ## 3. Ending filter
 
@@ -87,8 +109,6 @@ A lightweight browser tool for:
   </div>
 </div>
 
----
-
 ## 4. Download filtered CSV
 
 <div class="card">
@@ -100,13 +120,7 @@ A lightweight browser tool for:
   <div class="btn-row">
     <button id="btnDownload" class="btn btn-success" disabled>3) Download current dataframe (.csv)</button>
   </div>
-
-  <div class="help">
-    The website cannot write directly to Google Drive or arbitrary local folders (unlike Colab), but it can generate a CSV download.
-  </div>
 </div>
-
----
 
 ## Status / Preview
 
@@ -118,6 +132,10 @@ A lightweight browser tool for:
   <div class="preview-header">
     <strong>Preview (first rows)</strong>
     <span id="previewMeta" class="muted"></span>
+  </div>
+  <div class="field">
+    <label for="previewSearch"><strong>Quick search in preview</strong></label>
+    <input id="previewSearch" type="text" placeholder="Type to filter preview rows…" />
   </div>
   <div id="tableWrap" class="table-wrap"></div>
 </div>
