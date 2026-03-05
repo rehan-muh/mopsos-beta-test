@@ -6,12 +6,7 @@ title: Greek Morphology + Ending Filter
 <section class="hero card">
   <p class="kicker">Greek NLP Workspace</p>
   <h1>Greek Morphology + Ending Filter</h1>
-  <p class="lead">Upload, filter, persist, and re-use your CSV data directly in the browser.</p>
-  <div class="hero-chips">
-    <span class="chip">Sequential morphology filters</span>
-    <span class="chip">Accent-insensitive endings</span>
-    <span class="chip">Persistent local saves</span>
-  </div>
+  <p class="lead">Upload, filter, persist, and re-use your CSV data with a streamlined visual workflow.</p>
 </section>
 
 <div class="stats-grid" id="statsGrid">
@@ -20,16 +15,28 @@ title: Greek Morphology + Ending Filter
   <div class="stat-card"><span class="stat-label">After ending filter</span><strong id="statFinal">0</strong></div>
 </div>
 
-## 1. Load CSV
+## 1. Start with a dataset
 
 <div class="card">
+  <div class="grid-2">
+    <div class="field">
+      <label for="startupSavedDatasets"><strong>Use an already uploaded dataset</strong></label>
+      <select id="startupSavedDatasets"></select>
+    </div>
+    <div class="field startup-actions">
+      <button id="btnStartupLoad" class="btn btn-primary" disabled>Use selected saved dataset</button>
+    </div>
+  </div>
+
+  <div class="divider">or upload a new CSV</div>
+
   <label for="csvFile"><strong>CSV file</strong></label>
   <input id="csvFile" type="file" accept=".csv,text/csv" />
   <div class="help">Expected columns include morphology fields such as <code>pos</code>, <code>person</code>, <code>number</code>, <code>tense</code>, <code>mood</code>, <code>voice</code>, <code>gender</code>, <code>case</code> (any subset is fine).</div>
   <div id="loadStatus" class="status muted">No file loaded yet.</div>
 </div>
 
-## 1b. Save / Restore Dataset (persistent)
+## 1b. Save / Manage datasets
 
 <div class="card">
   <div class="grid-2">
@@ -48,7 +55,6 @@ title: Greek Morphology + Ending Filter
     <button id="btnLoadLocal" class="btn" disabled>Load saved dataset</button>
     <button id="btnDeleteLocal" class="btn btn-warn" disabled>Delete saved dataset</button>
   </div>
-  <div class="help">Saved datasets are stored in your browser local storage so you can re-open them later on the same browser/device.</div>
 </div>
 
 ## 2. Morphology filter (sequential)
@@ -109,7 +115,50 @@ title: Greek Morphology + Ending Filter
   </div>
 </div>
 
-## 4. Download filtered CSV
+## 4. Visualization Studio
+
+<div class="card">
+  <div class="grid-3">
+    <div class="field">
+      <label for="vizDataset"><strong>Dataset</strong></label>
+      <select id="vizDataset">
+        <option value="raw">Raw data</option>
+        <option value="morph">Morphology-filtered</option>
+        <option value="final">Ending-filtered</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="vizPrimary"><strong>Group by</strong></label>
+      <select id="vizPrimary" disabled></select>
+    </div>
+    <div class="field">
+      <label for="vizSecondary"><strong>Then by (optional)</strong></label>
+      <select id="vizSecondary" disabled></select>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div class="field">
+      <label for="vizTopN"><strong>Top categories</strong></label>
+      <input id="vizTopN" type="text" value="20" />
+    </div>
+    <div class="field">
+      <label for="vizSort"><strong>Sort</strong></label>
+      <select id="vizSort">
+        <option value="desc">Largest first</option>
+        <option value="asc">Smallest first</option>
+        <option value="alpha">Alphabetical</option>
+      </select>
+    </div>
+    <div class="field startup-actions">
+      <button id="btnViz" class="btn btn-primary" disabled>Render visualization</button>
+    </div>
+  </div>
+
+  <div id="vizWrap" class="viz-wrap"></div>
+</div>
+
+## 5. Download filtered CSV
 
 <div class="card">
   <div class="field">
