@@ -35,14 +35,17 @@
     clusterMaxDocFreq: byId("clusterMaxDocFreq"),
     btnRunCluster: byId("btnRunCluster"),
     btnClusterBenchmark: byId("btnClusterBenchmark"),
+    btnClusterStress: byId("btnClusterStress"),
     btnClusterExport: byId("btnClusterExport"),
     clusterSummary: byId("clusterSummary"),
     clusterBenchmark: byId("clusterBenchmark"),
+    clusterStressOut: byId("clusterStressOut"),
     clusterMdsSvg: byId("clusterMdsSvg"),
     clusterNetworkSvg: byId("clusterNetworkSvg"),
     clusterHeatmap: byId("clusterHeatmap"),
     clusterSizeBars: byId("clusterSizeBars"),
-    clusterFeatures: byId("clusterFeatures")
+    clusterFeatures: byId("clusterFeatures"),
+    clusterSimilarityDist: byId("clusterSimilarityDist")
   };
 
   function byId(id) { return document.getElementById(id); }
@@ -153,6 +156,7 @@
     const enabled = !!(state.rawRows.length && el.clusterBookCol.value && el.clusterTokenCol.value);
     el.btnRunCluster.disabled = !enabled;
     el.btnClusterBenchmark.disabled = !enabled;
+    if (el.btnClusterStress) el.btnClusterStress.disabled = !enabled;
   }
 
   function resetOutputs() {
@@ -163,6 +167,8 @@
     el.clusterMdsSvg.innerHTML = "";
     el.clusterNetworkSvg.innerHTML = "";
     el.clusterBenchmark.innerHTML = `<div class="small-muted">Benchmark table will render after benchmark run.</div>`;
+    if (el.clusterStressOut) el.clusterStressOut.innerHTML = `<div class="small-muted">Stress test output will appear here.</div>`;
+    if (el.clusterSimilarityDist) el.clusterSimilarityDist.innerHTML = `<div class="small-muted">Distribution will render after a run.</div>`;
   }
 
   function colorFor(i) {
@@ -623,6 +629,7 @@
     renderHeatmap(D, books, labels);
     renderNetwork(D, books, labels, threshold);
     renderFeatureSignatures(clusters, X, terms, books, labels, topFeatures);
+    renderSimilarityDistribution(D);
     setupZoomButtons();
   }
 
@@ -716,6 +723,57 @@
     el.clusterFeatures.innerHTML = html;
   }
 
+
+
+  function renderSimilarityDistribution(D) {
+    if (!el.clusterSimilarityDist) return;
+    const sims = [];
+    for (let i = 0; i < D.length; i++) for (let j = i + 1; j < D.length; j++) sims.push(1 - D[i][j]);
+    if (!sims.length) {
+      el.clusterSimilarityDist.innerHTML = `<div class="small-muted">Not enough books for distribution.</div>`;
+      return;
+    }
+    const bins = 10;
+    const counts = new Array(bins).fill(0);
+    for (const s of sims) {
+      const clamped = Math.max(0, Math.min(0.9999, s));
+      const idx = Math.floor(clamped * bins);
+      counts[idx] += 1;
+    }
+    const max = Math.max(...counts, 1);
+    let html = '';
+    for (let i = 0; i < bins; i++) {
+      const lo = (i / bins).toFixed(1);
+      const hi = ((i + 1) / bins).toFixed(1);
+      const w = Math.round((counts[i] / max) * 100);
+      html += `<div class="viz-item"><div class="viz-row"><span class="viz-label">${lo}–${hi}</span><div class="viz-bar" style="width:${Math.max(3, w)}%"></div><span class="viz-value">${counts[i]}</span></div></div>`;
+    }
+    el.clusterSimilarityDist.innerHTML = html;
+  }
+
+  function runStressTest() {
+    const methods = ["threshold","single","complete","average","ward","kmeans","kmedoids","dbscan","labelprop","mds_kmeans"];
+    const keep = el.clusterMethod.value;
+    const rows = [];
+    for (const m of methods) {
+      el.clusterMethod.value = m;
+      const t0 = performance.now();
+      const out = runCurrentConfig();
+      const ms = performance.now() - t0;
+      if (!out) continue;
+      rows.push({ method: m, ms, clusters: new Set(out.labels).size, sil: silhouetteApprox(out.D, out.labels) });
+    }
+    el.clusterMethod.value = keep;
+    if (!el.clusterStressOut) return;
+    if (!rows.length) {
+      el.clusterStressOut.innerHTML = `<div class="small-muted">Stress test unavailable for current setup.</div>`;
+      return;
+    }
+    let html = `<table class="mini-table"><thead><tr><th>Method</th><th>Runtime (ms)</th><th>Clusters</th><th>Silhouette</th></tr></thead><tbody>`;
+    for (const r of rows.sort((a,b)=>a.ms-b.ms)) html += `<tr><td>${esc(r.method)}</td><td>${r.ms.toFixed(2)}</td><td>${r.clusters}</td><td>${r.sil.toFixed(3)}</td></tr>`;
+    html += `</tbody></table>`;
+    el.clusterStressOut.innerHTML = html;
+  }
 
   function run() {
     const out = runCurrentConfig();
@@ -841,6 +899,7 @@
   [el.clusterBookCol, el.clusterTokenCol, el.clusterFeatureMode, el.clusterMethod, el.clusterExcludeFunction, el.clusterMinDocFreq, el.clusterMaxDocFreq].filter(Boolean).forEach(x => x.addEventListener("change", syncControlStates));
   el.btnRunCluster.addEventListener("click", run);
   el.btnClusterBenchmark.addEventListener("click", runBenchmark);
+  el.btnClusterStress?.addEventListener("click", runStressTest);
   el.btnClusterExport.addEventListener("click", exportAssignments);
   window.addEventListener("focus", refreshSharedSourceSelect);
 

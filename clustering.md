@@ -76,7 +76,8 @@ section: clustering
     <div class="field"><label for="clusterMinPts"><strong>DBSCAN minPts</strong></label><input id="clusterMinPts" type="text" value="2" /></div>
     <div class="field"><label for="clusterTopFeatures"><strong>Top features per cluster</strong></label><input id="clusterTopFeatures" type="text" value="10" /></div>
   </div>
-  <div class="btn-row"><button id="btnRunCluster" class="btn btn-primary" disabled>Run clustering pipeline</button><button id="btnClusterBenchmark" class="btn" disabled>Benchmark methods</button><button id="btnClusterExport" class="btn">Export assignments (CSV)</button></div>
+  <div class="btn-row"><button id="btnRunCluster" class="btn btn-primary" disabled>Run clustering pipeline</button><button id="btnClusterBenchmark" class="btn" disabled>Benchmark methods</button><button id="btnClusterStress" class="btn" disabled>Stress test all methods</button><button id="btnClusterExport" class="btn">Export assignments (CSV)</button></div>
+  <div id="clusterStressOut" class="analysis-wrap"><div class="small-muted">Stress test output will appear here.</div></div>
 </div>
 
 <div class="card">
@@ -91,5 +92,6 @@ section: clustering
     <div class="viz-wrap"><h3>Similarity heatmap</h3><div id="clusterHeatmap"></div></div>
     <div class="viz-wrap"><h3>Network (threshold edges)</h3><svg id="clusterNetworkSvg" class="cluster-svg" viewBox="0 0 760 420"></svg></div>
   </div>
+  <div class="viz-wrap"><h3>Similarity distribution</h3><div id="clusterSimilarityDist"></div></div>
   <div class="viz-wrap"><h3>Cluster feature signatures</h3><div id="clusterFeatures"></div></div>
 </div>

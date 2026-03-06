@@ -349,3 +349,23 @@ textarea.big-textarea:focus {
 
 
 
+
+
+.card h2 {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+}
+.card h2::before {
+  content: "";
+  width: 8px;
+  height: 24px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #4f46e5, #06b6d4);
+}
+.viz-wrap {
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+}
+.analysis-wrap {
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+}
