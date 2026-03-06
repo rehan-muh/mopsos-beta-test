@@ -113,7 +113,7 @@
   function quantityByNature(syl) {
     const core = syl.replace(/[^α-ωάέήίόύώϊΐΰϋ]/g,'');
     if (LONG_VOWELS.test(core)) return '–';
-    if ([...DIPHTHONGS].some(d => core.includes(d))) return '–';
+o    if ([...DIPHTHONGS].some(d => core.includes(d))) return '–';
     return '⏑';
   }
 

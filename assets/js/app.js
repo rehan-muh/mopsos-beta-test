@@ -18,7 +18,7 @@
     voice: { a: "active", e: "mediopassive", m: "middle", p: "passive" }
   };
 
-  const state = { rawRows: [], columns: [], morphCols: [], morphOrder: [], dropdowns: {}, updatingWidgets: false, dfMorph: null, dfFinal: null, requirePosFirst: true, fileName: null };
+  const state = { rawRows: [], columns: [], morphCols: [], morphOrder: [], dropdowns: {}, updatingWidgets: false, dfMorph: null, dfFinal: null, requirePosFirst: true, fileName: null, activePanel: "analysis" };
 
   const el = {
     csvFile: byId("csvFile"), loadStatus: byId("loadStatus"), morphControls: byId("morphControls"), autoLockSingletons: byId("autoLockSingletons"),
@@ -30,6 +30,11 @@
     startupSavedDatasets: byId("startupSavedDatasets"), btnStartupLoad: byId("btnStartupLoad"), vizDataset: byId("vizDataset"), vizPrimary: byId("vizPrimary"), vizSecondary: byId("vizSecondary"),
     vizTopN: byId("vizTopN"), vizSort: byId("vizSort"), vizType: byId("vizType"), btnViz: byId("btnViz"), vizWrap: byId("vizWrap"),
     analysisType: byId("analysisType"), analysisColA: byId("analysisColA"), analysisColB: byId("analysisColB"), btnRunAnalysis: byId("btnRunAnalysis"), analysisWrap: byId("analysisWrap"),
+    panelTabs: Array.from(document.querySelectorAll("[data-panel-tab]")),
+    panelCards: Array.from(document.querySelectorAll("[data-panel]")),
+    clusterDataset: byId("clusterDataset"), clusterBookCol: byId("clusterBookCol"), clusterFeatureMode: byId("clusterFeatureMode"),
+    clusterTokenCol: byId("clusterTokenCol"), clusterNgram: byId("clusterNgram"), clusterThreshold: byId("clusterThreshold"),
+    clusterTopFeatures: byId("clusterTopFeatures"), btnRunClustering: byId("btnRunClustering"), clusterWrap: byId("clusterWrap"),
     btnLoadBundled: byId("btnLoadBundled"),
     bundledDatasetChoice: byId("bundledDatasetChoice")
   };
@@ -507,6 +512,7 @@
     }
     el.btnViz.disabled = !(rows.length && el.vizPrimary.value);
     el.btnRunAnalysis.disabled = !rows.length;
+    populateClusterControls();
   }
 
   function renderVisualization() {
@@ -845,6 +851,12 @@ Error: ${String(err)}`);
   el.analysisColA.addEventListener("change", runAnalysis);
   el.analysisColB.addEventListener("change", runAnalysis);
   el.btnRunAnalysis.addEventListener("click", runAnalysis);
+  for (const tab of el.panelTabs) tab.addEventListener("click", () => setActivePanel(tab.dataset.panelTab));
+  el.clusterDataset.addEventListener("change", populateClusterControls);
+  el.clusterFeatureMode.addEventListener("change", populateClusterControls);
+  el.clusterBookCol.addEventListener("change", populateClusterControls);
+  el.clusterTokenCol.addEventListener("change", populateClusterControls);
+  el.btnRunClustering.addEventListener("click", runClustering);
 
   refreshSavedDatasetSelects();
   updateButtonStates();

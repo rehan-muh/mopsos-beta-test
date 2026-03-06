@@ -208,9 +208,14 @@ section: morphology
   <div id="vizWrap" class="viz-wrap"></div>
 </div>
 
-## 5. Analysis dropdowns
+## 5. Analysis + Clustering
 
-<div class="card">
+<div class="tab-row" role="tablist" aria-label="Analysis panels">
+  <button class="tab-btn is-active" type="button" data-panel-tab="analysis" id="tabAnalysis">Analysis</button>
+  <button class="tab-btn" type="button" data-panel-tab="clustering" id="tabClustering">Clustering</button>
+</div>
+
+<div class="card panel-card is-active" data-panel="analysis">
   <div class="grid-3">
     <div class="field">
       <label for="analysisType"><strong>Analysis</strong></label>
@@ -238,6 +243,57 @@ section: morphology
   </div>
 
   <div id="analysisWrap" class="analysis-wrap"></div>
+</div>
+
+<div class="card panel-card" data-panel="clustering" hidden>
+  <div class="grid-3">
+    <div class="field">
+      <label for="clusterDataset"><strong>Dataset</strong></label>
+      <select id="clusterDataset">
+        <option value="raw">Raw data</option>
+        <option value="morph">Morphology-filtered</option>
+        <option value="final">Ending-filtered</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="clusterBookCol"><strong>Book column</strong></label>
+      <select id="clusterBookCol" disabled></select>
+    </div>
+    <div class="field">
+      <label for="clusterFeatureMode"><strong>Feature type</strong></label>
+      <select id="clusterFeatureMode">
+        <option value="column">Column values (forms, lemma, etc.)</option>
+        <option value="collocation">Collocations (n-grams)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div class="field">
+      <label for="clusterTokenCol"><strong>Feature/token column</strong></label>
+      <select id="clusterTokenCol" disabled></select>
+    </div>
+    <div class="field">
+      <label for="clusterNgram"><strong>Words per collocation</strong></label>
+      <input id="clusterNgram" type="text" value="2" />
+    </div>
+    <div class="field">
+      <label for="clusterThreshold"><strong>Similarity threshold (0–1)</strong></label>
+      <input id="clusterThreshold" type="text" value="0.2" />
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div class="field">
+      <label for="clusterTopFeatures"><strong>Top features per book</strong></label>
+      <input id="clusterTopFeatures" type="text" value="80" />
+    </div>
+    <div class="field startup-actions">
+      <button id="btnRunClustering" class="btn btn-primary" disabled>Run clustering</button>
+    </div>
+  </div>
+
+  <div id="clusterWrap" class="analysis-wrap"></div>
 </div>
 
 ## 6. Download filtered CSV
