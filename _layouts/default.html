@@ -47,5 +47,21 @@
   {% if page.section == "prosody" %}<script src="{{ '/assets/js/prosody.js' | relative_url }}"></script>{% endif %}
   {% if page.section == "phonology" %}<script src="{{ '/assets/js/phonology.js' | relative_url }}"></script>{% endif %}
   {% endif %}
+  <script>
+    (function(){
+      var jump = document.getElementById("sideToolJump");
+      if (!jump) return;
+      var now = window.location.pathname.replace(/\/$/, "");
+      for (var i = 0; i < jump.options.length; i++) {
+        var opt = jump.options[i];
+        if (!opt.value) continue;
+        try {
+          var path = new URL(opt.value, window.location.origin).pathname.replace(/\/$/, "");
+          if (path === now) { jump.value = opt.value; break; }
+        } catch (e) {}
+      }
+      jump.addEventListener("change", function(){ if (this.value) window.location.href = this.value; });
+    })();
+  </script>
 </body>
 </html>

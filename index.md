@@ -220,7 +220,12 @@ section: morphology
 
 <h2 id="sec-analysis">5. Analysis dropdowns</h2>
 
-<div class="card">
+<div class="tab-row" role="tablist" aria-label="Analysis panels">
+  <button class="tab-btn is-active" type="button" data-panel-tab="analysis" id="tabAnalysis">Analysis</button>
+  <button class="tab-btn" type="button" data-panel-tab="clustering" id="tabClustering">Clustering</button>
+</div>
+
+<div class="card panel-card is-active" data-panel="analysis">
   <div class="grid-3">
     <div class="field">
       <label for="analysisType"><strong>Analysis</strong></label>
