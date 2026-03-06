@@ -1,6 +1,11 @@
 (() => {
   const HEX_TEMPLATE = '– ⏑ ⏑ | – ⏑ ⏑ | – ⏑ ⏑ | – ⏑ ⏑ | – ⏑ ⏑ | – –';
   const PRESETS = { hex: HEX_TEMPLATE };
+  const SCANSION_FILES = [
+    'homer_files.csv','homer_lines.csv','homer_words.csv','homer_syllables.csv',
+    'iliad_files.csv','iliad_lines.csv','iliad_words.csv','iliad_syllables.csv',
+    'odyssey_files.csv','odyssey_lines.csv','odyssey_words.csv','odyssey_syllables.csv'
+  ];
   const VOWEL = /[αεηιουω]/i;
   const LONG_VOWELS = /[ηω]/i;
   const DIPHTHONGS = new Set(['αι','ει','οι','υι','ου','αυ','ευ','ηυ','ωυ']);
@@ -19,10 +24,19 @@
     prosodySummary: document.getElementById('prosodySummary'),
     prosodyAlignment: document.getElementById('prosodyAlignment'),
     prosodyBars: document.getElementById('prosodyBars'),
-    prosodyDiagnostics: document.getElementById('prosodyDiagnostics')
+    prosodyDiagnostics: document.getElementById('prosodyDiagnostics'),
+    scansionWork: document.getElementById('scansionWork'),
+    btnLoadScansionCorpus: document.getElementById('btnLoadScansionCorpus'),
+    btnScansionRefresh: document.getElementById('btnScansionRefresh'),
+    scansionLoadStatus: document.getElementById('scansionLoadStatus'),
+    scansionCorpusSummary: document.getElementById('scansionCorpusSummary'),
+    scansionLinesByWork: document.getElementById('scansionLinesByWork'),
+    scansionFeetPatterns: document.getElementById('scansionFeetPatterns'),
+    scansionQuantityProfile: document.getElementById('scansionQuantityProfile'),
+    scansionPacingProfile: document.getElementById('scansionPacingProfile')
   };
 
-  const state = { rows: [] };
+  const state = { rows: [], corpus: {}, corpusLoaded: false };
   const norm = (s) => String(s || '').trim();
   const esc = (x) => String(x ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
@@ -225,6 +239,138 @@
     document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   }
 
+
+  function resolveAssetUrl(path) {
+    try { return new URL(path, document.baseURI).toString(); } catch { return path; }
+  }
+
+  function mapAdd(map, key, inc = 1) {
+    if (!key) return;
+    map.set(key, (map.get(key) || 0) + inc);
+  }
+
+  async function fetchCsvAny(path) {
+    const variants = [path, resolveAssetUrl(path), path.startsWith('/') ? path : `/${path}`, path.startsWith('./') ? path.slice(2) : `./${path}`];
+    let lastErr = null;
+    for (const url of [...new Set(variants)]) {
+      try {
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) { lastErr = new Error(`HTTP ${res.status} @ ${url}`); continue; }
+        const txt = await res.text();
+        const parsed = Papa.parse(txt, { header: true, skipEmptyLines: true });
+        return { rows: parsed.data || [], url };
+      } catch (err) { lastErr = err; }
+    }
+    throw lastErr || new Error(`Could not load ${path}`);
+  }
+
+  function fileMatchesScope(fileName, scope) {
+    if (scope === 'all') return true;
+    return fileName.startsWith(`${scope}_`);
+  }
+
+  function renderCorpusBars(target, entries, cap = 16) {
+    const top = entries.slice(0, cap);
+    const max = Math.max(...top.map(([,v]) => Number(v) || 0), 1);
+    let html = '';
+    for (const [k, v] of top) {
+      const w = Math.max(3, Math.round(((Number(v) || 0) / max) * 100));
+      html += `<div class="viz-item"><div class="viz-row"><span class="viz-label">${esc(k)}</span><div class="viz-bar" style="width:${w}%"></div><span class="viz-value">${Number(v)||0}</span></div></div>`;
+    }
+    target.innerHTML = html || '<div class="small-muted">No data for this scope.</div>';
+  }
+
+  function computeCorpusStats(scope = 'all') {
+    if (!state.corpusLoaded) return null;
+    const files = Object.entries(state.corpus).filter(([name]) => fileMatchesScope(name, scope));
+    const allRows = (suffix) => files.filter(([name]) => name.endsWith(`_${suffix}.csv`)).flatMap(([, rows]) => rows);
+
+    const lineRows = allRows('lines');
+    const syllRows = allRows('syllables');
+    const wordRows = allRows('words');
+    const fileRows = allRows('files');
+
+    const linesByWork = new Map();
+    const feetPat = new Map();
+    const qty = new Map();
+    let totalSyllables = 0, totalWords = 0, caesuraWord = 0;
+
+    for (const r of lineRows) {
+      mapAdd(linesByWork, String(r.work || 'unknown').trim() || 'unknown', 1);
+      mapAdd(feetPat, String(r.feet_pattern || 'unknown').trim() || 'unknown', 1);
+      totalSyllables += Number(r.n_syllables || 0);
+      totalWords += Number(r.n_words || 0);
+    }
+    for (const r of syllRows) mapAdd(qty, String(r.quantity || 'unknown').toLowerCase(), 1);
+    for (const r of wordRows) if (Number(r.contains_footend || 0)) caesuraWord += 1;
+
+    const verseCount = lineRows.length;
+    const avgSyl = verseCount ? (totalSyllables / verseCount) : 0;
+    const avgWords = verseCount ? (totalWords / verseCount) : 0;
+    const caesuraRate = wordRows.length ? ((caesuraWord / wordRows.length) * 100) : 0;
+    return {
+      works: new Set(lineRows.map(r => String(r.work || '').trim()).filter(Boolean)).size,
+      books: new Set(lineRows.map(r => `${r.work || ''}:${r.book || ''}`)).size,
+      verseCount,
+      fileCount: fileRows.length,
+      avgSyl,
+      avgWords,
+      caesuraRate,
+      linesByWork: [...linesByWork.entries()].sort((a,b)=>b[1]-a[1]),
+      feetPatterns: [...feetPat.entries()].sort((a,b)=>b[1]-a[1]),
+      quantities: [...qty.entries()].sort((a,b)=>b[1]-a[1])
+    };
+  }
+
+  function renderCorpusStats(scope = el.scansionWork?.value || 'all') {
+    const stats = computeCorpusStats(scope);
+    if (!stats) return;
+    el.scansionCorpusSummary.innerHTML = `<div class="analysis-grid">
+      <div class="analysis-card"><span class="label">Works</span><div class="value">${stats.works}</div></div>
+      <div class="analysis-card"><span class="label">Books</span><div class="value">${stats.books}</div></div>
+      <div class="analysis-card"><span class="label">Lines</span><div class="value">${stats.verseCount}</div></div>
+      <div class="analysis-card"><span class="label">Source files</span><div class="value">${stats.fileCount}</div></div>
+      <div class="analysis-card"><span class="label">Avg syllables/line</span><div class="value">${stats.avgSyl.toFixed(2)}</div></div>
+      <div class="analysis-card"><span class="label">Avg words/line</span><div class="value">${stats.avgWords.toFixed(2)}</div></div>
+      <div class="analysis-card"><span class="label">Word-footend rate</span><div class="value">${stats.caesuraRate.toFixed(1)}%</div></div>
+    </div>`;
+
+    renderCorpusBars(el.scansionLinesByWork, stats.linesByWork, 8);
+    renderCorpusBars(el.scansionFeetPatterns, stats.feetPatterns, 12);
+    renderCorpusBars(el.scansionQuantityProfile, stats.quantities, 6);
+    renderCorpusBars(el.scansionPacingProfile, [
+      ['Avg syllables/line', Number(stats.avgSyl.toFixed(2))],
+      ['Avg words/line', Number(stats.avgWords.toFixed(2))],
+      ['Word-footend rate (%)', Number(stats.caesuraRate.toFixed(1))]
+    ], 6);
+    setupZoom();
+  }
+
+  async function loadScansionCorpus() {
+    if (!el.scansionLoadStatus) return;
+    el.scansionLoadStatus.textContent = 'Loading scansion corpus tables...';
+    const loaded = {};
+    const errs = [];
+    for (const f of SCANSION_FILES) {
+      const path = `assets/data/scansion/${f}`;
+      try {
+        const out = await fetchCsvAny(path);
+        loaded[f] = out.rows;
+      } catch (err) {
+        errs.push(`${f}: ${String(err)}`);
+      }
+    }
+    state.corpus = loaded;
+    state.corpusLoaded = Object.keys(loaded).length > 0;
+    if (!state.corpusLoaded) {
+      el.scansionLoadStatus.textContent = `Could not load scansion files. Put CSVs in assets/data/scansion/.`;
+      return;
+    }
+    const rowCt = Object.values(loaded).reduce((a, rows) => a + rows.length, 0);
+    el.scansionLoadStatus.textContent = `Loaded ${Object.keys(loaded).length}/${SCANSION_FILES.length} files (${rowCt} rows).${errs.length ? ` Missing: ${errs.length} file(s).` : ''}`;
+    renderCorpusStats(el.scansionWork?.value || 'all');
+  }
+
   function setupZoom() {
     const targets = [el.prosodySummary, ...document.querySelectorAll('.viz-wrap')].filter(Boolean);
     for (const c of targets) {
@@ -269,6 +415,10 @@
   el.btnRunProsody.addEventListener('click', run);
   el.btnProsodySample.addEventListener('click', () => { el.prosodyTemplate.value = PRESETS.hex; run(); });
   el.btnProsodyExport.addEventListener('click', exportCsv);
+  el.btnLoadScansionCorpus?.addEventListener('click', loadScansionCorpus);
+  el.btnScansionRefresh?.addEventListener('click', () => renderCorpusStats(el.scansionWork?.value || 'all'));
+  el.scansionWork?.addEventListener('change', () => renderCorpusStats(el.scansionWork.value));
   el.prosodyTemplate.value = PRESETS.hex;
   run();
+  loadScansionCorpus();
 })();
