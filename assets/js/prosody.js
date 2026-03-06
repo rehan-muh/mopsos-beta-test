@@ -1,11 +1,12 @@
 (() => {
   const HEX_TEMPLATE = '– ⏑ ⏑ | – ⏑ ⏑ | – ⏑ ⏑ | – ⏑ ⏑ | – ⏑ ⏑ | – –';
   const PRESETS = { hex: HEX_TEMPLATE };
-  const VOWEL = /[αεηιουωάέήίόύώϊΐΰϋ]/i;
+  const VOWEL = /[αεηιουω]/i;
   const LONG_VOWELS = /[ηω]/i;
-  const DIPHTHONG = /(αι|ει|οι|υι|ου|αυ|ευ|ηυ|ωυ)/i;
+  const DIPHTHONGS = new Set(['αι','ει','οι','υι','ου','αυ','ευ','ηυ','ωυ']);
   const MUTE = /[πβφκγχτδθ]/i;
   const LIQUID = /[λρμν]/i;
+  const LEGAL_ONSETS = new Set(['βλ','βρ','γλ','γν','γρ','δρ','θλ','θρ','κλ','κν','κρ','κτ','μν','πλ','πν','πρ','πτ','σβ','σγ','σθ','σκ','σμ','σπ','στ','σφ','σχ','τρ','φθ','φλ','φρ','χθ','χλ','χρ','στρ','σκρ','σπρ','σπλ']);
 
   const el = {
     prosodyPreset: document.getElementById('prosodyPreset'),
@@ -26,7 +27,13 @@
   const esc = (x) => String(x ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
   function normalizeGreek(text) {
-    return String(text || '').toLowerCase().replace(/[.,;·!?"'“”‘’]/g,'').replace(/ς/g,'σ');
+    return String(text || '')
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toLowerCase()
+      .replace(/ς/g,'σ')
+      .replace(/[.,;·!?"“”‘’]/g,'')
+      .replace(/[^α-ω'᾽\s]/g,'');
   }
 
   function applyElision(rawWords) {
@@ -34,7 +41,7 @@
     let elisions = 0;
     for (let i = 0; i < words.length - 1; i++) {
       const w = words[i];
-      if (/['᾽]$/.test(w) || /[αεο]$/.test(w)) {
+      if (/^[αεηιουω]/.test(words[i + 1]) && (/['᾽]$/.test(w) || /[αεο]$/.test(w))) {
         words[i] = w.replace(/['᾽]$/,'').replace(/[αεο]$/,'');
         elisions += 1;
       }
@@ -42,38 +49,63 @@
     return { words, elisions };
   }
 
+  function isLegalOnset(cluster) {
+    if (!cluster) return false;
+    if (cluster.length === 1) return /[βγδζθκλμνξπρστφχψ]/.test(cluster);
+    return LEGAL_ONSETS.has(cluster);
+  }
+
+  function splitCluster(cluster) {
+    if (!cluster) return ['', ''];
+    for (let i = 0; i <= cluster.length; i++) {
+      const coda = cluster.slice(0, i);
+      const onset = cluster.slice(i);
+      if (isLegalOnset(onset)) return [coda, onset];
+    }
+    return [cluster.slice(0, -1), cluster.slice(-1)];
+  }
+
   function syllabifyWord(word) {
-    const chars = [...word]; const out = []; let i = 0;
+    const chars = [...word];
+    const out = [];
+    let i = 0;
+    let carryOnset = '';
+
     while (i < chars.length) {
-      let onset = '';
-      while (i < chars.length && !VOWEL.test(chars[i])) { onset += chars[i]; i += 1; }
-      if (i >= chars.length) { if (out.length) out[out.length - 1] += onset; break; }
+      let gathered = '';
+      while (i < chars.length && !VOWEL.test(chars[i])) { gathered += chars[i]; i += 1; }
+      let onset = carryOnset + gathered;
+      carryOnset = '';
+      if (i >= chars.length) {
+        if (out.length) out[out.length - 1] += onset;
+        break;
+      }
 
       let nucleus = chars[i];
-      if (i + 1 < chars.length && VOWEL.test(chars[i+1]) && DIPHTHONG.test((chars[i] + chars[i+1]).toLowerCase())) {
-        nucleus += chars[i+1]; i += 1;
+      if (i + 1 < chars.length) {
+        const pair = (chars[i] + chars[i + 1]).toLowerCase();
+        if (DIPHTHONGS.has(pair)) { nucleus = pair; i += 1; }
       }
       i += 1;
 
       let cluster = '';
       while (i < chars.length && !VOWEL.test(chars[i])) { cluster += chars[i]; i += 1; }
 
+      if (!cluster && i >= chars.length) {
+        out.push(onset + nucleus);
+        break;
+      }
       if (!cluster) {
         out.push(onset + nucleus);
-      } else if (cluster.length === 1) {
-        out.push(onset + nucleus);
-        i -= 1;
-      } else {
-        const first = cluster[0], second = cluster[1];
-        const keepTogether = MUTE.test(first) && LIQUID.test(second);
-        if (keepTogether) {
-          out.push(onset + nucleus);
-          i -= cluster.length;
-        } else {
-          out.push(onset + nucleus + first);
-          i -= (cluster.length - 1);
-        }
+        continue;
       }
+      if (i >= chars.length) {
+        out.push(onset + nucleus + cluster);
+        break;
+      }
+      const [coda, nextOnset] = splitCluster(cluster);
+      out.push(onset + nucleus + coda);
+      carryOnset = nextOnset;
     }
     return out.filter(Boolean);
   }
@@ -81,7 +113,7 @@
   function quantityByNature(syl) {
     const core = syl.replace(/[^α-ωάέήίόύώϊΐΰϋ]/g,'');
     if (LONG_VOWELS.test(core)) return '–';
-    if (DIPHTHONG.test(core)) return '–';
+o    if ([...DIPHTHONGS].some(d => core.includes(d))) return '–';
     return '⏑';
   }
 

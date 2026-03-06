@@ -1,7 +1,9 @@
 (() => {
   const BUNDLED = { "default.csv": "assets/data/default.csv", "default2.csv": "assets/data/default2.csv" };
-  const VOWELS = /[αεηιουωάέήίόύώϊΐΰϋ]/i;
+  const VOWELS = /[αεηιουω]/i;
   const CONSONANTS = /[βγδζθκλμνξπρστφχψ]/i;
+  const DIPHTHONGS = new Set(['αι','ει','οι','υι','ου','αυ','ευ','ηυ','ωυ']);
+  const LEGAL_ONSETS = new Set(['βλ','βρ','γλ','γν','γρ','δρ','θλ','θρ','κλ','κν','κρ','κτ','μν','πλ','πν','πρ','πτ','σβ','σγ','σθ','σκ','σμ','σπ','στ','σφ','σχ','τρ','φθ','φλ','φρ','χθ','χλ','χρ','στρ','σκρ','σπρ','σπλ']);
 
   const el = {
     phonCsvFile: document.getElementById('phonCsvFile'),
@@ -21,22 +23,72 @@
   const state = { rows: [], cols: [] };
   const esc = (x) => String(x ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-  function cleanToken(t) {
-    return String(t||'').toLowerCase().replace(/[^α-ωάέήίόύώϊΐΰϋ]/g,'').replace(/ς/g,'σ');
+  function normalizeGreekToken(t) {
+    return String(t || '')
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toLowerCase()
+      .replace(/ς/g, 'σ')
+      .replace(/[^α-ω]/g, '');
+  }
+
+  function isLegalOnset(cluster) {
+    if (!cluster) return false;
+    if (cluster.length === 1) return CONSONANTS.test(cluster);
+    return LEGAL_ONSETS.has(cluster);
+  }
+
+  function splitCluster(cluster) {
+    if (!cluster) return ['', ''];
+    for (let i = 0; i <= cluster.length; i++) {
+      const coda = cluster.slice(0, i);
+      const onset = cluster.slice(i);
+      if (isLegalOnset(onset)) return [coda, onset];
+    }
+    return [cluster.slice(0, -1), cluster.slice(-1)];
   }
 
   function syllabify(word) {
-    const chars=[...word]; const out=[]; let cur='';
-    for (let i=0;i<chars.length;i++) {
-      cur += chars[i];
-      if (VOWELS.test(chars[i])) {
-        const n1 = chars[i+1]||'', n2 = chars[i+2]||'';
-        if (!n1) { out.push(cur); cur=''; }
-        else if (VOWELS.test(n1)) { out.push(cur); cur=''; }
-        else if (n2 && VOWELS.test(n2)) { out.push(cur+n1); cur=''; i += 1; }
+    const chars = [...word];
+    const out = [];
+    let i = 0;
+    let carryOnset = '';
+
+    while (i < chars.length) {
+      let gathered = '';
+      while (i < chars.length && !VOWELS.test(chars[i])) { gathered += chars[i]; i += 1; }
+      let onset = carryOnset + gathered;
+      carryOnset = '';
+      if (i >= chars.length) {
+        if (out.length) out[out.length - 1] += onset;
+        break;
       }
+
+      let nucleus = chars[i];
+      if (i + 1 < chars.length) {
+        const pair = (chars[i] + chars[i + 1]).toLowerCase();
+        if (DIPHTHONGS.has(pair)) { nucleus = pair; i += 1; }
+      }
+      i += 1;
+
+      let cluster = '';
+      while (i < chars.length && !VOWELS.test(chars[i])) { cluster += chars[i]; i += 1; }
+      if (!cluster && i >= chars.length) {
+        out.push(onset + nucleus);
+        break;
+      }
+      if (!cluster) {
+        out.push(onset + nucleus);
+        continue;
+      }
+      if (i >= chars.length) {
+        out.push(onset + nucleus + cluster);
+        break;
+      }
+      const [coda, nextOnset] = splitCluster(cluster);
+      out.push(onset + nucleus + coda);
+      carryOnset = nextOnset;
     }
-    if (cur) out.push(cur);
     return out.filter(Boolean);
   }
 
@@ -44,7 +96,14 @@
     const chars=[...syl]; let i=0, onset='';
     while (i<chars.length && CONSONANTS.test(chars[i])) { onset += chars[i]; i++; }
     let nucleus='';
-    while (i<chars.length && VOWELS.test(chars[i])) { nucleus += chars[i]; i++; }
+    if (i < chars.length) {
+      nucleus += chars[i];
+      if (i + 1 < chars.length) {
+        const pair = (chars[i] + chars[i+1]).toLowerCase();
+        if (DIPHTHONGS.has(pair)) { nucleus = pair; i += 1; }
+      }
+      i += 1;
+    }
     const coda = chars.slice(i).join('');
     return { onset, nucleus, coda, shape: `${onset?'C':''}${nucleus?'V':''}${coda?'C':''}` };
   }
@@ -88,7 +147,7 @@
 
     for (const r of state.rows) {
       const raw = String(r[col] || '').trim();
-      const tok = cleanToken(raw);
+      const tok = normalizeGreekToken(raw);
       if (!tok) continue;
       for (const ch of [...tok]) freqMapAdd(phonemes, ch);
       const syls = syllabify(tok);
