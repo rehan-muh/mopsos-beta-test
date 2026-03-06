@@ -28,7 +28,27 @@ section: morphology
   </div>
 </div>
 
-## 1. Start with a dataset
+
+<div class="card">
+  <h2>Quick table of contents</h2>
+  <div class="field">
+    <label for="morphToc"><strong>Jump to section</strong></label>
+    <select id="morphToc" onchange="if(this.value) location.hash=this.value;">
+      <option value="">Choose section...</option>
+      <option value="sec-start">1. Start with a dataset</option>
+      <option value="sec-save">1b. Save / Manage datasets</option>
+      <option value="sec-default">1c. Set a default CSV in assets</option>
+      <option value="sec-morph">2. Morphology filter</option>
+      <option value="sec-endings">3. Ending filter</option>
+      <option value="sec-viz">4. Visualization Studio</option>
+      <option value="sec-analysis">5. Analysis dropdowns</option>
+      <option value="sec-download">6. Download filtered CSV</option>
+      <option value="sec-preview">Status / Preview</option>
+    </select>
+  </div>
+</div>
+
+<h2 id="sec-start">1. Start with a dataset</h2>
 
 <div class="card">
   <div class="grid-2">
@@ -62,7 +82,7 @@ section: morphology
   <div id="loadStatus" class="status muted">No file loaded yet.</div>
 </div>
 
-## 1b. Save / Manage datasets
+<h2 id="sec-save">1b. Save / Manage datasets</h2>
 
 <div class="card">
   <div class="grid-2">
@@ -84,7 +104,7 @@ section: morphology
 </div>
 
 
-## 1c. Set a default CSV in assets
+<h2 id="sec-default">1c. Set a default CSV in assets</h2>
 
 <div class="card">
   <ol>
@@ -95,7 +115,7 @@ section: morphology
   <div class="help">If you want different names/paths, edit <code>BUNDLED_DATASET_URLS</code> in <code>assets/js/app.js</code>. You can still upload your own CSV anytime.</div>
 </div>
 
-## 2. Morphology filter (sequential)
+<h2 id="sec-morph">2. Morphology filter (sequential)</h2>
 
 <div class="card">
   <label class="inline">
@@ -111,7 +131,7 @@ section: morphology
   </div>
 </div>
 
-## 3. Ending filter
+<h2 id="sec-endings">3. Ending filter</h2>
 
 <div class="card">
   <div class="field">
@@ -153,7 +173,7 @@ section: morphology
   </div>
 </div>
 
-## 4. Visualization Studio
+<h2 id="sec-viz">4. Visualization Studio</h2>
 
 <div class="card">
   <div class="grid-3">
@@ -208,7 +228,7 @@ section: morphology
   <div id="vizWrap" class="viz-wrap"></div>
 </div>
 
-## 5. Analysis + Clustering
+<h2 id="sec-analysis">5. Analysis dropdowns</h2>
 
 <div class="tab-row" role="tablist" aria-label="Analysis panels">
   <button class="tab-btn is-active" type="button" data-panel-tab="analysis" id="tabAnalysis">Analysis</button>
@@ -245,58 +265,7 @@ section: morphology
   <div id="analysisWrap" class="analysis-wrap"></div>
 </div>
 
-<div class="card panel-card" data-panel="clustering" hidden>
-  <div class="grid-3">
-    <div class="field">
-      <label for="clusterDataset"><strong>Dataset</strong></label>
-      <select id="clusterDataset">
-        <option value="raw">Raw data</option>
-        <option value="morph">Morphology-filtered</option>
-        <option value="final">Ending-filtered</option>
-      </select>
-    </div>
-    <div class="field">
-      <label for="clusterBookCol"><strong>Book column</strong></label>
-      <select id="clusterBookCol" disabled></select>
-    </div>
-    <div class="field">
-      <label for="clusterFeatureMode"><strong>Feature type</strong></label>
-      <select id="clusterFeatureMode">
-        <option value="column">Column values (forms, lemma, etc.)</option>
-        <option value="collocation">Collocations (n-grams)</option>
-      </select>
-    </div>
-  </div>
-
-  <div class="grid-3">
-    <div class="field">
-      <label for="clusterTokenCol"><strong>Feature/token column</strong></label>
-      <select id="clusterTokenCol" disabled></select>
-    </div>
-    <div class="field">
-      <label for="clusterNgram"><strong>Words per collocation</strong></label>
-      <input id="clusterNgram" type="text" value="2" />
-    </div>
-    <div class="field">
-      <label for="clusterThreshold"><strong>Similarity threshold (0–1)</strong></label>
-      <input id="clusterThreshold" type="text" value="0.2" />
-    </div>
-  </div>
-
-  <div class="grid-3">
-    <div class="field">
-      <label for="clusterTopFeatures"><strong>Top features per book</strong></label>
-      <input id="clusterTopFeatures" type="text" value="80" />
-    </div>
-    <div class="field startup-actions">
-      <button id="btnRunClustering" class="btn btn-primary" disabled>Run clustering</button>
-    </div>
-  </div>
-
-  <div id="clusterWrap" class="analysis-wrap"></div>
-</div>
-
-## 6. Download filtered CSV
+<h2 id="sec-download">6. Download filtered CSV</h2>
 
 <div class="card">
   <div class="help">Tip: when you run morphology/ending filters, snapshots are automatically shared to the Clustering page as <code>morph_filtered</code> and <code>ending_filtered</code>.</div>
@@ -312,7 +281,7 @@ section: morphology
   </div>
 </div>
 
-## Status / Preview
+<h2 id="sec-preview">Status / Preview</h2>
 
 <div class="card">
   <pre id="statusBox" class="status">Load a CSV to begin.</pre>

@@ -345,3 +345,14 @@ textarea.big-textarea:focus {
 #syntaxTable td {
   vertical-align: top;
 }
+
+
+.site-jump {
+  border: 1px solid rgba(129, 140, 248, 0.35);
+  border-radius: 999px;
+  background: rgba(255,255,255,.9);
+  color: #1e293b;
+  padding: .35rem .65rem;
+  font-weight: 600;
+  min-width: 150px;
+}

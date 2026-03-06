@@ -762,6 +762,28 @@
   }
 
 
+
+
+  async function fetchBundledCsv(path) {
+    const variants = [
+      path,
+      resolveAssetUrl(path),
+      path.startsWith('/') ? path : `/${path}`,
+      path.startsWith('./') ? path.slice(2) : `./${path}`
+    ];
+    let lastErr = null;
+    for (const candidate of [...new Set(variants)]) {
+      try {
+        const res = await fetch(candidate, { cache: "no-store" });
+        if (res.ok) return { text: await res.text(), url: candidate };
+        lastErr = new Error(`HTTP ${res.status} @ ${candidate}`);
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw lastErr || new Error(`Could not load bundled csv at ${path}`);
+  }
+
   async function loadBundledDefaultCsv() {
     const selected = el.bundledDatasetChoice?.value || "default.csv";
     const selectedUrl = BUNDLED_DATASET_URLS[selected];
@@ -772,12 +794,9 @@
 
     el.loadStatus.textContent = `Loading bundled CSV from ${selectedUrl} ...`;
     try {
-      const resolvedUrl = resolveAssetUrl(selectedUrl);
-      const res = await fetch(resolvedUrl, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const text = await res.text();
-      parseAndLoadCsv(text, selectedUrl, true);
-      status(`Loaded bundled CSV: ${resolvedUrl}`);
+      const loaded = await fetchBundledCsv(selectedUrl);
+      parseAndLoadCsv(loaded.text, selectedUrl, true);
+      status(`Loaded bundled CSV: ${loaded.url}`);
     } catch (err) {
       el.loadStatus.textContent = "Bundled CSV not found.";
       status(`Could not load bundled CSV at '${selectedUrl}'.
