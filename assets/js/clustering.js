@@ -31,7 +31,10 @@
     clusterMinPts: byId("clusterMinPts"),
     clusterTopFeatures: byId("clusterTopFeatures"),
     btnRunCluster: byId("btnRunCluster"),
+    btnClusterBenchmark: byId("btnClusterBenchmark"),
+    btnClusterExport: byId("btnClusterExport"),
     clusterSummary: byId("clusterSummary"),
+    clusterBenchmark: byId("clusterBenchmark"),
     clusterMdsSvg: byId("clusterMdsSvg"),
     clusterNetworkSvg: byId("clusterNetworkSvg"),
     clusterHeatmap: byId("clusterHeatmap"),
@@ -127,7 +130,9 @@
 
   function syncControlStates() {
     el.clusterNgram.disabled = el.clusterFeatureMode.value !== "collocation";
-    el.btnRunCluster.disabled = !(state.rawRows.length && el.clusterBookCol.value && el.clusterTokenCol.value);
+    const enabled = !!(state.rawRows.length && el.clusterBookCol.value && el.clusterTokenCol.value);
+    el.btnRunCluster.disabled = !enabled;
+    el.btnClusterBenchmark.disabled = !enabled;
   }
 
   function resetOutputs() {
@@ -137,6 +142,7 @@
     el.clusterFeatures.innerHTML = `<div class="small-muted">Top cluster features will render after a run.</div>`;
     el.clusterMdsSvg.innerHTML = "";
     el.clusterNetworkSvg.innerHTML = "";
+    el.clusterBenchmark.innerHTML = `<div class="small-muted">Benchmark table will render after benchmark run.</div>`;
   }
 
   function colorFor(i) {
@@ -497,11 +503,39 @@
     return coords;
   }
 
-  function run() {
+
+  function silhouetteApprox(D, labels) {
+    const n = labels.length;
+    if (n < 3) return 0;
+    let sum = 0;
+    for (let i = 0; i < n; i++) {
+      const own = labels[i];
+      let aSum = 0, aCt = 0;
+      const bMap = new Map();
+      for (let j = 0; j < n; j++) {
+        if (i === j) continue;
+        const d = D[i][j];
+        if (labels[j] === own) { aSum += d; aCt += 1; }
+        else {
+          const z = bMap.get(labels[j]) || [0,0];
+          z[0] += d; z[1] += 1; bMap.set(labels[j], z);
+        }
+      }
+      const a = aCt ? aSum / aCt : 0;
+      let b = Infinity;
+      for (const [s, c] of bMap.values()) b = Math.min(b, s / c);
+      if (!Number.isFinite(b)) b = a;
+      const denom = Math.max(a, b, 1e-9);
+      sum += (b - a) / denom;
+    }
+    return sum / n;
+  }
+
+  function runCurrentConfig() {
     const rows = state.rawRows;
     const bookCol = el.clusterBookCol.value;
     const tokenCol = el.clusterTokenCol.value;
-    if (!rows.length || !bookCol || !tokenCol) return;
+    if (!rows.length || !bookCol || !tokenCol) return null;
 
     const mode = el.clusterFeatureMode.value;
     const ngramN = Math.max(2, Number.parseInt(el.clusterNgram.value, 10) || 2);
@@ -516,18 +550,13 @@
 
     const featureByBook = buildFeatures(rows, bookCol, tokenCol, mode, ngramN);
     const { books, X, terms } = vectorize(featureByBook, vectorModel);
-    if (books.length < 2) {
-      el.clusterSummary.innerHTML = `<div class="small-muted">Need at least 2 books with data for clustering.</div>`;
-      return;
-    }
-
+    if (books.length < 2) return null;
     const D = pairwiseDistance(X, metric);
     const labels = runMethod(method, D, X, { k, threshold, eps, minPts });
     const coords = classicalMds(D, 2);
-
-    state.run = { books, labels, D, coords, X, terms, featureByBook, threshold, method, metric, vectorModel, mode, ngramN, topFeatures };
-    renderAll();
+    return { books, labels, D, coords, X, terms, featureByBook, threshold, method, metric, vectorModel, mode, ngramN, topFeatures, k, eps, minPts };
   }
+
 
   function renderAll() {
     const { books, labels, D, coords, X, terms, threshold, method, metric, vectorModel, mode, ngramN, topFeatures } = state.run;
@@ -646,6 +675,52 @@
   }
 
 
+  function run() {
+    const out = runCurrentConfig();
+    if (!out) {
+      el.clusterSummary.innerHTML = `<div class="small-muted">Need at least 2 books with data for clustering.</div>`;
+      return;
+    }
+    state.run = out;
+    renderAll();
+  }
+
+  function runBenchmark() {
+    const methods = ["threshold","single","complete","average","ward","kmeans","kmedoids","dbscan","labelprop","mds_kmeans"];
+    const keep = el.clusterMethod.value;
+    const rows = [];
+    for (const m of methods) {
+      el.clusterMethod.value = m;
+      const out = runCurrentConfig();
+      if (!out) continue;
+      rows.push({ method: m, clusters: new Set(out.labels).size, silhouette: silhouetteApprox(out.D, out.labels) });
+    }
+    el.clusterMethod.value = keep;
+    if (!rows.length) {
+      el.clusterBenchmark.innerHTML = `<div class="small-muted">Benchmark unavailable for current settings.</div>`;
+      return;
+    }
+    let html = `<table class="mini-table"><thead><tr><th>Method</th><th>Clusters</th><th>Silhouette (approx)</th></tr></thead><tbody>`;
+    for (const r of rows.sort((a,b)=>b.silhouette-a.silhouette)) html += `<tr><td>${esc(r.method)}</td><td>${r.clusters}</td><td>${r.silhouette.toFixed(3)}</td></tr>`;
+    html += `</tbody></table>`;
+    el.clusterBenchmark.innerHTML = html;
+  }
+
+  function exportAssignments() {
+    if (!state.run?.books?.length) return;
+    const { books, labels } = state.run;
+    const lines = ['book,cluster', ...books.map((b,i)=>`"${String(b).replace(/"/g,'""')}","${labels[i]}"`)];
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'cluster_assignments.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
 
   function setupZoomButtons() {
     const containers = document.querySelectorAll(".viz-wrap, #clusterSummary");
@@ -703,6 +778,8 @@
   el.btnClusterLoadShared.addEventListener("click", loadSharedDataset);
   [el.clusterBookCol, el.clusterTokenCol, el.clusterFeatureMode, el.clusterMethod].forEach(x => x.addEventListener("change", syncControlStates));
   el.btnRunCluster.addEventListener("click", run);
+  el.btnClusterBenchmark.addEventListener("click", runBenchmark);
+  el.btnClusterExport.addEventListener("click", exportAssignments);
   window.addEventListener("focus", refreshSharedSourceSelect);
 
   refreshSharedSourceSelect();

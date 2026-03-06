@@ -71,12 +71,13 @@ section: clustering
     <div class="field"><label for="clusterMinPts"><strong>DBSCAN minPts</strong></label><input id="clusterMinPts" type="text" value="2" /></div>
     <div class="field"><label for="clusterTopFeatures"><strong>Top features per cluster</strong></label><input id="clusterTopFeatures" type="text" value="10" /></div>
   </div>
-  <div class="btn-row"><button id="btnRunCluster" class="btn btn-primary" disabled>Run clustering pipeline</button></div>
+  <div class="btn-row"><button id="btnRunCluster" class="btn btn-primary" disabled>Run clustering pipeline</button><button id="btnClusterBenchmark" class="btn" disabled>Benchmark methods</button><button id="btnClusterExport" class="btn">Export assignments (CSV)</button></div>
 </div>
 
 <div class="card">
   <h2>4. Visualizations</h2>
   <div id="clusterSummary" class="analysis-wrap"></div>
+  <div class="viz-wrap"><h3>Method benchmark</h3><div id="clusterBenchmark"></div></div>
   <div class="grid-2">
     <div class="viz-wrap"><h3>MDS scatter</h3><svg id="clusterMdsSvg" class="cluster-svg" viewBox="0 0 760 420"></svg></div>
     <div class="viz-wrap"><h3>Cluster size bars</h3><div id="clusterSizeBars"></div></div>
