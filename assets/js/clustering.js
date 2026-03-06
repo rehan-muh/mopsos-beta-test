@@ -30,6 +30,9 @@
     clusterEps: byId("clusterEps"),
     clusterMinPts: byId("clusterMinPts"),
     clusterTopFeatures: byId("clusterTopFeatures"),
+    clusterExcludeFunction: byId("clusterExcludeFunction"),
+    clusterMinDocFreq: byId("clusterMinDocFreq"),
+    clusterMaxDocFreq: byId("clusterMaxDocFreq"),
     btnRunCluster: byId("btnRunCluster"),
     btnClusterBenchmark: byId("btnClusterBenchmark"),
     btnClusterExport: byId("btnClusterExport"),
@@ -47,6 +50,23 @@
   function esc(v) { return String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
   function setStatus(msg) { el.clusterLoadStatus.textContent = msg; }
+
+
+  const FUNCTION_WORDS = new Set([
+    "και","δε","τε","γαρ","γε","αρα","ρα","αν","κε","κεν","περ","τοι","που","νυ","μεν","ουν","η","ου","μη","ει","ως","ο","η","το","οι","αι","τα","τον","την","των","τοις","ταις","τον","την","τις","τι","τον","των"
+  ]);
+
+  function normalizeGreek(x) {
+    return String(x ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/ς/g, "σ").replace(/[^α-ω]/g, "");
+  }
+
+  function termIsFunctionWord(term, mode) {
+    if (mode === "collocation") {
+      const parts = String(term).split(" ␠ ").map(normalizeGreek).filter(Boolean);
+      return parts.length ? parts.every(p => FUNCTION_WORDS.has(p)) : false;
+    }
+    return FUNCTION_WORDS.has(normalizeGreek(term));
+  }
 
 
   function readSharedSources() {
@@ -150,7 +170,7 @@
     return palette[i % palette.length];
   }
 
-  function buildFeatures(rows, bookCol, tokenCol, mode, ngramN) {
+  function buildFeatures(rows, bookCol, tokenCol, mode, ngramN, filters) {
     const byBook = new Map();
     for (const r of rows) {
       const b = normStr(r[bookCol]);
@@ -170,8 +190,26 @@
         feats.push(...tokens);
       }
       const freq = new Map();
-      for (const f of feats) freq.set(f, (freq.get(f) || 0) + 1);
+      for (const f of feats) {
+        if (filters.excludeFunction && termIsFunctionWord(f, mode)) continue;
+        freq.set(f, (freq.get(f) || 0) + 1);
+      }
       featureByBook.set(book, freq);
+    }
+
+    const books = [...featureByBook.keys()];
+    const docFreq = new Map();
+    for (const b of books) for (const term of featureByBook.get(b).keys()) docFreq.set(term, (docFreq.get(term) || 0) + 1);
+
+    for (const b of books) {
+      const src = featureByBook.get(b);
+      const next = new Map();
+      for (const [term, count] of src.entries()) {
+        const ratio = (docFreq.get(term) || 0) / Math.max(1, books.length);
+        if (ratio < filters.minDf || ratio > filters.maxDf) continue;
+        next.set(term, count);
+      }
+      featureByBook.set(b, next);
     }
     return featureByBook;
   }
@@ -547,19 +585,23 @@
     const eps = Math.max(0.01, Number.parseFloat(el.clusterEps.value) || 0.65);
     const minPts = Math.max(1, Number.parseInt(el.clusterMinPts.value, 10) || 2);
     const topFeatures = Math.max(3, Number.parseInt(el.clusterTopFeatures.value, 10) || 10);
+    const excludeFunction = el.clusterExcludeFunction?.value === "on";
+    const minDf = Math.min(1, Math.max(0, Number.parseFloat(el.clusterMinDocFreq?.value) || 0));
+    const maxDfRaw = Math.min(1, Math.max(0, Number.parseFloat(el.clusterMaxDocFreq?.value) || 1));
+    const maxDf = Math.max(minDf, maxDfRaw);
 
-    const featureByBook = buildFeatures(rows, bookCol, tokenCol, mode, ngramN);
+    const featureByBook = buildFeatures(rows, bookCol, tokenCol, mode, ngramN, { excludeFunction, minDf, maxDf });
     const { books, X, terms } = vectorize(featureByBook, vectorModel);
     if (books.length < 2) return null;
     const D = pairwiseDistance(X, metric);
     const labels = runMethod(method, D, X, { k, threshold, eps, minPts });
     const coords = classicalMds(D, 2);
-    return { books, labels, D, coords, X, terms, featureByBook, threshold, method, metric, vectorModel, mode, ngramN, topFeatures, k, eps, minPts };
+    return { books, labels, D, coords, X, terms, featureByBook, threshold, method, metric, vectorModel, mode, ngramN, topFeatures, k, eps, minPts, excludeFunction, minDf, maxDf };
   }
 
 
   function renderAll() {
-    const { books, labels, D, coords, X, terms, threshold, method, metric, vectorModel, mode, ngramN, topFeatures } = state.run;
+    const { books, labels, D, coords, X, terms, threshold, method, metric, vectorModel, mode, ngramN, topFeatures, excludeFunction, minDf, maxDf } = state.run;
     const kMap = new Map();
     labels.forEach((lab, i) => {
       if (!kMap.has(lab)) kMap.set(lab, []);
@@ -574,7 +616,7 @@
       <div class="analysis-card"><span class="label">Method</span><div class="value">${esc(method)}</div></div>
       <div class="analysis-card"><span class="label">Distance / Model</span><div class="value">${esc(metric)} / ${esc(vectorModel)}</div></div>
     </div>
-    <div class="small-muted" style="margin-top:.5rem;">Features: ${esc(mode === "collocation" ? `${ngramN}-gram collocations` : "direct tokens")}. Noise points: ${noiseCt}.</div>`;
+    <div class="small-muted" style="margin-top:.5rem;">Features: ${esc(mode === "collocation" ? `${ngramN}-gram collocations` : "direct tokens")}. Noise points: ${noiseCt}. Stylometry filters: ${excludeFunction ? "exclude function words" : "function words included"}; DF ratio ${minDf.toFixed(2)}–${maxDf.toFixed(2)}.</div>`;
 
     renderMds(coords, books, labels);
     renderBars(clusters, books, labels);
@@ -796,7 +838,7 @@
   });
   el.btnClusterLoadBundled.addEventListener("click", () => loadBundled(false));
   el.btnClusterLoadShared.addEventListener("click", loadSharedDataset);
-  [el.clusterBookCol, el.clusterTokenCol, el.clusterFeatureMode, el.clusterMethod].forEach(x => x.addEventListener("change", syncControlStates));
+  [el.clusterBookCol, el.clusterTokenCol, el.clusterFeatureMode, el.clusterMethod, el.clusterExcludeFunction, el.clusterMinDocFreq, el.clusterMaxDocFreq].filter(Boolean).forEach(x => x.addEventListener("change", syncControlStates));
   el.btnRunCluster.addEventListener("click", run);
   el.btnClusterBenchmark.addEventListener("click", runBenchmark);
   el.btnClusterExport.addEventListener("click", exportAssignments);

@@ -17,8 +17,8 @@
         <a class="site-brand" href="{{ '/index.html' | relative_url }}">
           <span class="brand-mark" aria-hidden="true">Γ</span>
           <span class="brand-copy">
-            <strong>Greek NLP Tools</strong>
-            <small>Digital Philology Workbench</small>
+            <strong>MOPSOS</strong>
+            <small>Ancient Greek Database of Morphology, Phonology, Syntax, Orality, and Scansion</small>
           </span>
         </a>
 
@@ -26,24 +26,12 @@
           <a href="{{ '/syntax.html' | relative_url }}" class="nav-link{% if page.section == 'syntax' %} is-active{% endif %}">Syntax</a>
           <a href="{{ '/prosody.html' | relative_url }}" class="nav-link{% if page.section == 'prosody' %} is-active{% endif %}">Prosody</a>
           <a href="{{ '/index.html' | relative_url }}" class="nav-link{% if page.section == 'morphology' %} is-active{% endif %}">Morphology</a>
-          <a href="{{ '/clustering.html' | relative_url }}" class="nav-link{% if page.section == 'clustering' %} is-active{% endif %}">Clustering</a>
+          <a href="{{ '/clustering.html' | relative_url }}" class="nav-link{% if page.section == 'clustering' %} is-active{% endif %}">Stylometry</a>
           <a href="{{ '/phonology.html' | relative_url }}" class="nav-link{% if page.section == 'phonology' %} is-active{% endif %}">Phonology</a>
         </nav>
       </div>
     </div>
   </header>
-
-  <aside class="side-tool-jump" aria-label="Tool quick switcher">
-    <label for="sideToolJump"><strong>Tools</strong></label>
-    <select id="sideToolJump" class="site-jump">
-      <option value="">Jump to tool…</option>
-      <option value="{{ '/index.html' | relative_url }}">Morphology</option>
-      <option value="{{ '/clustering.html' | relative_url }}">Clustering</option>
-      <option value="{{ '/syntax.html' | relative_url }}">Syntax</option>
-      <option value="{{ '/prosody.html' | relative_url }}">Prosody</option>
-      <option value="{{ '/phonology.html' | relative_url }}">Phonology</option>
-    </select>
-  </aside>
 
 
   <main class="container site-main">

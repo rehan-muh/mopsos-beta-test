@@ -1,13 +1,13 @@
 ---
 layout: default
-title: Clustering
+title: Stylometry
 section: clustering
 ---
 
 <section class="hero card">
-  <p class="kicker">Greek NLP Workspace</p>
-  <h1>Book Clustering Studio</h1>
-  <p class="lead">Run 10 clustering strategies over books using forms, lemmas, or configurable n-gram collocations, with MDS and multiple visual diagnostics.</p>
+  <p class="kicker">MOPSOS</p>
+  <h1>Stylometry</h1>
+  <p class="lead">Clustering, similarity, and network analysis.</p>
 </section>
 
 <div class="card">
@@ -45,6 +45,11 @@ section: clustering
     <div class="field"><label for="clusterNgram"><strong>Collocation size n</strong></label><input id="clusterNgram" type="text" value="2" /></div>
     <div class="field"><label for="clusterVectorModel"><strong>Vector model</strong></label><select id="clusterVectorModel"><option value="binary">Binary presence</option><option value="count">Raw counts</option><option value="tfidf" selected>TF-IDF</option></select></div>
     <div class="field"><label for="clusterDistance"><strong>Distance metric</strong></label><select id="clusterDistance"><option value="cosine" selected>Cosine</option><option value="jaccard">Jaccard</option><option value="euclidean">Euclidean</option><option value="manhattan">Manhattan</option></select></div>
+  </div>
+  <div class="grid-3">
+    <div class="field"><label for="clusterExcludeFunction"><strong>Exclude function words</strong></label><select id="clusterExcludeFunction"><option value="off" selected>No</option><option value="on">Yes</option></select></div>
+    <div class="field"><label for="clusterMinDocFreq"><strong>Min document frequency ratio</strong></label><input id="clusterMinDocFreq" type="text" value="0.00" /></div>
+    <div class="field"><label for="clusterMaxDocFreq"><strong>Max document frequency ratio</strong></label><input id="clusterMaxDocFreq" type="text" value="1.00" /></div>
   </div>
 </div>
 

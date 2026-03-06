@@ -5,7 +5,7 @@ section: syntax
 ---
 
 <section class="hero card">
-  <p class="kicker">Greek NLP Tools</p>
+  <p class="kicker">MOPSOS</p>
   <h1>Syntax Workbench</h1>
   <p class="lead">Generate dependency trees, phrase structure snapshots, corpus-level syntax statistics, and searchable constructions from token-level annotation.</p>
 </section>

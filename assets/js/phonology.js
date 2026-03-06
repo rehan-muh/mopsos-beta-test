@@ -4,6 +4,7 @@
   const CONSONANTS = /[βγδζθκλμνξπρστφχψ]/i;
   const DIPHTHONGS = new Set(['αι','ει','οι','υι','ου','αυ','ευ','ηυ','ωυ']);
   const LEGAL_ONSETS = new Set(['βλ','βρ','γλ','γν','γρ','δρ','θλ','θρ','κλ','κν','κρ','κτ','μν','πλ','πν','πρ','πτ','σβ','σγ','σθ','σκ','σμ','σπ','στ','σφ','σχ','τρ','φθ','φλ','φρ','χθ','χλ','χρ','στρ','σκρ','σπρ','σπλ']);
+  const LEGAL_CODA_CLUSTERS = new Set(['γδ','γμ','γν','γκ','γχ','κτ','κσ','κρ','κλ','κμ','κν','κχ','κφ','κθ','κπ','κβ','κγ','κδ','κζ','μν','μσ','μπ','μφ','μχ','μφθ','μφρ','νδ','νθ','νκ','ντ','νσ','νξ','νχ','νφ','νψ','νζ','νγ','νβ','πρ','πτ','πσ','ρμ','ρν','ρσ','ρτ','ρκ','ρχ','ρθ','ρπ','ρβ','ργ','ρδ','ρζ','ρφ','ρκ','ρξ','ρψ','σθ','σκ','σμ','σπ','στ','σφ','σχ','τμ','τν','τρ','τσ','τθ','τκ','τπ','τφ','τχ','φθ','φρ','χθ','χρ','ψρ']);
 
   const el = {
     phonCsvFile: document.getElementById('phonCsvFile'),
@@ -17,6 +18,8 @@
     phonShapeBars: document.getElementById('phonShapeBars'),
     phonOnsetBars: document.getElementById('phonOnsetBars'),
     phonCodaBars: document.getElementById('phonCodaBars'),
+    phonDiphBars: document.getElementById('phonDiphBars'),
+    phonQuantityBars: document.getElementById('phonQuantityBars'),
     phonTable: document.getElementById('phonTable')
   };
 
@@ -108,6 +111,35 @@
     return { onset, nucleus, coda, shape: `${onset?'C':''}${nucleus?'V':''}${coda?'C':''}` };
   }
 
+
+  function consonantLength(str) {
+    return [...String(str || '')].filter(ch => CONSONANTS.test(ch)).length;
+  }
+
+  function toConsonantCluster(str) {
+    const clean = [...String(str || '')].filter(ch => CONSONANTS.test(ch)).join('');
+    return clean.length >= 2 ? clean : '';
+  }
+
+  function isLikelyCodaCluster(cluster) {
+    if (!cluster || consonantLength(cluster) < 2) return false;
+    if (LEGAL_CODA_CLUSTERS.has(cluster)) return true;
+    if (cluster.length === 2 && /[νρλστκπμγδθχφβζξψ]/.test(cluster[0]) && /[σνρλτκπμ]/.test(cluster[1])) return true;
+    return false;
+  }
+
+
+  function classifyVowelQuantity(nucleus) {
+    const v = String(nucleus || '');
+    if (!v) return 'unknown';
+    if (DIPHTHONGS.has(v)) return 'long (diphthong)';
+    if (v === 'η' || v === 'ω') return 'long';
+    if (v === 'ε' || v === 'ο') return 'short';
+    if (v === 'αι' || v === 'οι') return 'variable';
+    if (v === 'α' || v === 'ι' || v === 'υ') return 'variable';
+    return 'unknown';
+  }
+
   function parseCsv(text, name='uploaded.csv') {
     el.phonLoadStatus.textContent = `Loading ${name}...`;
     Papa.parse(text, { header:true, skipEmptyLines:true, complete: (res) => {
@@ -141,7 +173,7 @@
   function run() {
     const col = el.phonTokenCol.value;
     if (!col) return;
-    const phonemes = new Map(), shapes = new Map(), onsets = new Map(), codas = new Map();
+    const phonemes = new Map(), shapes = new Map(), onsets = new Map(), codas = new Map(), diphthongs = new Map(), quantity = new Map();
     const report=[];
     let totalSyl=0;
 
@@ -156,9 +188,13 @@
       for (const s of syls) {
         const sp = splitShape(s);
         shapeList.push(sp.shape);
+        if (DIPHTHONGS.has(sp.nucleus)) freqMapAdd(diphthongs, sp.nucleus);
+        freqMapAdd(quantity, classifyVowelQuantity(sp.nucleus));
         freqMapAdd(shapes, sp.shape);
-        if (sp.onset) freqMapAdd(onsets, sp.onset);
-        if (sp.coda) freqMapAdd(codas, sp.coda);
+        const onsetCluster = toConsonantCluster(sp.onset);
+        if (onsetCluster && isLegalOnset(onsetCluster)) freqMapAdd(onsets, onsetCluster);
+        const codaCluster = toConsonantCluster(sp.coda);
+        if (codaCluster && isLikelyCodaCluster(codaCluster)) freqMapAdd(codas, codaCluster);
       }
       report.push({ token: raw, cleaned: tok, syllables: syls.join(' · '), shapes: shapeList.join(' ') });
     }
@@ -174,6 +210,8 @@
     renderBars(el.phonShapeBars, shapes, 12);
     renderBars(el.phonOnsetBars, onsets, 20);
     renderBars(el.phonCodaBars, codas, 20);
+    renderBars(el.phonDiphBars, diphthongs, 12);
+    renderBars(el.phonQuantityBars, quantity, 8);
 
     let html='<table class="mini-table"><thead><tr><th>Token</th><th>Normalized</th><th>Syllables</th><th>Shapes</th></tr></thead><tbody>';
     for (const row of report.slice(0,300)) html += `<tr><td>${esc(row.token)}</td><td>${esc(row.cleaned)}</td><td>${esc(row.syllables)}</td><td>${esc(row.shapes)}</td></tr>`;

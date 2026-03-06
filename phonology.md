@@ -5,9 +5,8 @@ section: phonology
 ---
 
 <section class="hero card">
-  <p class="kicker">Greek NLP Tools</p>
-  <h1>Phonology Analyzer</h1>
-  <p class="lead">Analyze phonological distributions, syllable structure, onset/coda behavior, and vowel quantity patterns from Greek corpora.</p>
+  <p class="kicker">MOPSOS</p>
+  <h1>Phonology</h1>
 </section>
 
 <div class="card">
@@ -44,6 +43,10 @@ section: phonology
   <div class="grid-2">
     <div class="viz-wrap"><h3>Onset clusters</h3><div id="phonOnsetBars"></div></div>
     <div class="viz-wrap"><h3>Coda clusters</h3><div id="phonCodaBars"></div></div>
+  </div>
+  <div class="grid-2">
+    <div class="viz-wrap"><h3>Diphthong distribution</h3><div id="phonDiphBars"></div></div>
+    <div class="viz-wrap"><h3>Vowel quantity profile</h3><div id="phonQuantityBars"></div></div>
   </div>
   <div class="viz-wrap"><h3>Token-level phonology table</h3><div id="phonTable"></div></div>
 </div>
