@@ -50,7 +50,18 @@
     scansionLineScope: document.getElementById('scansionLineScope'),
     scansionLineQuery: document.getElementById('scansionLineQuery'),
     btnRenderLineScansion: document.getElementById('btnRenderLineScansion'),
-    prosodyLineScansionTable: document.getElementById('prosodyLineScansionTable')
+    prosodyLineScansionTable: document.getElementById('prosodyLineScansionTable'),
+    patternClusterThreshold: document.getElementById('patternClusterThreshold'),
+    patternClusterTopN: document.getElementById('patternClusterTopN'),
+    btnPatternCluster: document.getElementById('btnPatternCluster'),
+    patternClusterSummary: document.getElementById('patternClusterSummary'),
+    patternClusterTable: document.getElementById('patternClusterTable'),
+    slotFootSelect: document.getElementById('slotFootSelect'),
+    slotWordQuery: document.getElementById('slotWordQuery'),
+    slotTopN: document.getElementById('slotTopN'),
+    btnSlotRepetition: document.getElementById('btnSlotRepetition'),
+    slotRepetitionSummary: document.getElementById('slotRepetitionSummary'),
+    slotRepetitionTable: document.getElementById('slotRepetitionTable')
   };
 
   const state = { rows: [], corpus: {}, corpusLoaded: false };
@@ -189,7 +200,7 @@
   }
 
   function parseTemplate() {
-    const text = norm(el.prosodyTemplate.value) || HEX_TEMPLATE;
+    const text = norm(el.prosodyTemplate?.value || '') || HEX_TEMPLATE;
     const raw = text.replace(/[^–⏑xX|]/g, '');
     return raw.split('');
   }
@@ -679,6 +690,111 @@
   }
 
 
+
+  function normalizePattern(p) {
+    return String(p || '').replace(/[^LS\|]/gi, '').toUpperCase();
+  }
+
+  function patternSimilarity(a, b) {
+    const x = normalizePattern(a).replace(/\|/g, '');
+    const y = normalizePattern(b).replace(/\|/g, '');
+    const n = Math.max(x.length, y.length, 1);
+    let same = 0;
+    for (let i = 0; i < n; i++) if ((x[i] || '-') === (y[i] || '-')) same += 1;
+    return same / n;
+  }
+
+  function runPatternClustering() {
+    if (!state.corpusLoaded) return;
+    const scope = el.scansionWork?.value || 'all';
+    const rows = collectLineScansionRows(scope);
+    const topN = Math.max(5, num(el.patternClusterTopN?.value, 20));
+    const threshold = Math.max(0.1, Math.min(0.99, num(el.patternClusterThreshold?.value, 0.7)));
+
+    const freq = new Map();
+    for (const r of rows) {
+      const p = normalizePattern(r.feet_pattern);
+      if (!p) continue;
+      freq.set(p, (freq.get(p) || 0) + 1);
+    }
+    const patterns = [...freq.entries()].sort((a,b)=>b[1]-a[1]).slice(0, topN).map(([p,c])=>({pattern:p,count:c}));
+    const labels = new Array(patterns.length).fill(-1);
+    let cid = 0;
+    for (let i = 0; i < patterns.length; i++) {
+      if (labels[i] !== -1) continue;
+      labels[i] = cid;
+      for (let j = i + 1; j < patterns.length; j++) {
+        if (patternSimilarity(patterns[i].pattern, patterns[j].pattern) >= threshold) labels[j] = cid;
+      }
+      cid += 1;
+    }
+
+    const clusters = new Map();
+    patterns.forEach((p, i) => {
+      const c = labels[i];
+      if (!clusters.has(c)) clusters.set(c, []);
+      clusters.get(c).push(p);
+    });
+
+    if (el.patternClusterSummary) {
+      el.patternClusterSummary.innerHTML = `<div class="analysis-grid">
+        <div class="analysis-card"><span class="label">Patterns considered</span><div class="value">${patterns.length}</div></div>
+        <div class="analysis-card"><span class="label">Clusters</span><div class="value">${clusters.size}</div></div>
+        <div class="analysis-card"><span class="label">Similarity threshold</span><div class="value">${threshold.toFixed(2)}</div></div>
+      </div>`;
+    }
+
+    let html = '<div class="table-wrap"><table class="mini-table"><thead><tr><th>Cluster</th><th>Patterns</th><th>Total lines</th></tr></thead><tbody>';
+    for (const [c, arr] of [...clusters.entries()].sort((a,b)=>b[1].length-a[1].length)) {
+      const total = arr.reduce((t,x)=>t+x.count,0);
+      const pats = arr.map(x => `${x.pattern} (${x.count})`).join(', ');
+      html += `<tr><td>${c}</td><td>${esc(pats)}</td><td>${total}</td></tr>`;
+    }
+    html += '</tbody></table></div>';
+    if (el.patternClusterTable) el.patternClusterTable.innerHTML = html;
+    setupZoom();
+  }
+
+  function runSlotRepetitionAnalysis() {
+    if (!state.corpusLoaded) return;
+    const scope = el.scansionWork?.value || 'all';
+    const foot = el.slotFootSelect?.value || 'all';
+    const q = normalizeGreekForMatch(el.slotWordQuery?.value || '').trim();
+    const topN = Math.max(5, num(el.slotTopN?.value, 25));
+
+    const base = buildSelectionRows(scope).filter(r => (foot === 'all' || r.start_foot === String(foot) || r.end_foot === String(foot)));
+    const byWord = new Map();
+    for (const r of base) {
+      const key = normalizeGreekForMatch(r.word_text);
+      if (!key) continue;
+      const row = byWord.get(key) || { display: r.word_text, count: 0, feet: new Set(), books: new Set() };
+      row.count += 1;
+      row.feet.add(r.start_foot || r.end_foot || '-');
+      row.books.add(`${r.work}:${r.book}`);
+      byWord.set(key, row);
+    }
+
+    let rows = [...byWord.entries()].map(([k,v]) => ({ key: k, ...v }));
+    if (q) rows = rows.filter(r => r.key.includes(q));
+    rows.sort((a,b)=>b.count-a.count);
+    const top = rows.slice(0, topN);
+
+    if (el.slotRepetitionSummary) {
+      el.slotRepetitionSummary.innerHTML = `<div class="analysis-grid">
+        <div class="analysis-card"><span class="label">Candidate tokens</span><div class="value">${rows.length}</div></div>
+        <div class="analysis-card"><span class="label">Top list size</span><div class="value">${top.length}</div></div>
+        <div class="analysis-card"><span class="label">Foot filter</span><div class="value">${foot === 'all' ? 'all' : foot}</div></div>
+        <div class="analysis-card"><span class="label">Word query</span><div class="value">${esc(q || '(top-N mode)')}</div></div>
+      </div>`;
+    }
+
+    let html = '<div class="table-wrap"><table class="mini-table"><thead><tr><th>Word</th><th>Count</th><th>Feet</th><th>Books hit</th></tr></thead><tbody>';
+    for (const r of top) html += `<tr><td>${esc(r.display)}</td><td>${r.count}</td><td>${esc([...r.feet].join(', '))}</td><td>${r.books.size}</td></tr>`;
+    html += '</tbody></table></div>';
+    if (el.slotRepetitionTable) el.slotRepetitionTable.innerHTML = html;
+    setupZoom();
+  }
+
   function setupZoom() {
     const targets = [el.prosodySummary, ...document.querySelectorAll('.viz-wrap')].filter(Boolean);
     for (const c of targets) {
@@ -704,26 +820,59 @@
   }
 
   function run() {
-    const lines = norm(el.prosodyInput.value).split(/\r?\n/).map(norm).filter(Boolean);
     const template = parseTemplate();
-    const scanned = lines.map(scanLine).map((r, idx) => {
-      const cmp = comparePattern(r.pattern, template);
-      return { verse: idx + 1, text: r.line, scansion: r.pattern.join(' '), syllables: r.syllables.length, matchScore: cmp.score, mismatches: cmp.mismatches, ...r };
-    });
-    const totalSyl = scanned.reduce((a,r)=>a+r.syllables.length,0);
+    let scanned = [];
+
+    const manualLines = norm(el.prosodyInput?.value || '').split(/\r?\n/).map(norm).filter(Boolean);
+    if (manualLines.length) {
+      scanned = manualLines.map(scanLine).map((r, idx) => {
+        const cmp = comparePattern(r.pattern, template);
+        return { verse: idx + 1, text: r.line, scansion: r.pattern.join(' '), syllables: r.syllables.length, matchScore: cmp.score, mismatches: cmp.mismatches, ...r };
+      });
+    } else if (state.corpusLoaded) {
+      const fromCorpus = collectLineScansionRows(el.scansionWork?.value || 'all').slice(0, 500);
+      scanned = fromCorpus.map((r, idx) => {
+        const raw = normalizePattern(r.feet_pattern).replace(/\|/g, '');
+        const pattern = [...raw].map(ch => ch === 'L' ? '–' : '⏑');
+        const cmp = comparePattern(pattern, template);
+        const words = (r.words || []).map(w => String(w.word_text || '').trim()).filter(Boolean);
+        const ci = words.length < 4 ? -1 : Math.floor(words.length / 2);
+        const caesuraText = words.map((w, i) => i === ci ? `${w} ‖` : w).join(' ');
+        return {
+          verse: idx + 1,
+          line: r.text,
+          text: r.text,
+          words,
+          syllables: r.syllables || [],
+          pattern,
+          scansion: pattern.join(' '),
+          matchScore: cmp.score,
+          mismatches: cmp.mismatches,
+          caesuraAt: ci,
+          caesuraText,
+          elisions: 0,
+          correption: 0,
+          resonantLengthening: 0
+        };
+      });
+    }
+
+    const totalSyl = scanned.reduce((a,r)=>a + (Array.isArray(r.syllables) ? r.syllables.length : num(r.syllables,0)),0);
     state.rows = scanned;
     renderSummary(scanned, totalSyl);
     renderAlignment(scanned);
     renderBars(scanned);
     renderDiagnostics(scanned);
     renderAdvancedProsodyVisuals(scanned);
+    runPatternClustering();
+    runSlotRepetitionAnalysis();
     setupZoom();
   }
 
-  el.btnApplyPreset.addEventListener('click', () => { el.prosodyTemplate.value = PRESETS.hex; run(); });
-  el.btnRunProsody.addEventListener('click', run);
-  el.btnProsodySample.addEventListener('click', () => { el.prosodyTemplate.value = PRESETS.hex; run(); });
-  el.btnProsodyExport.addEventListener('click', exportCsv);
+  el.btnApplyPreset?.addEventListener('click', () => { if (el.prosodyTemplate) el.prosodyTemplate.value = PRESETS.hex; run(); });
+  el.btnRunProsody?.addEventListener('click', run);
+  el.btnProsodySample?.addEventListener('click', () => { if (el.prosodyTemplate) el.prosodyTemplate.value = PRESETS.hex; run(); });
+  el.btnProsodyExport?.addEventListener('click', exportCsv);
   el.btnLoadScansionCorpus?.addEventListener('click', loadScansionCorpus);
   el.btnScansionRefresh?.addEventListener('click', () => renderCorpusStats(el.scansionWork?.value || 'all'));
   el.scansionWork?.addEventListener('change', () => renderCorpusStats(el.scansionWork.value));
@@ -736,7 +885,6 @@
   el.scansionLineQuery?.addEventListener('input', renderLineScansionBrowser);
   el.prosodyGraphMode?.addEventListener('change', () => renderAdvancedProsodyVisuals(state.rows));
   el.prosodyGraphTopN?.addEventListener('change', () => renderAdvancedProsodyVisuals(state.rows));
-  el.prosodyTemplate.value = PRESETS.hex;
-  run();
-  loadScansionCorpus();
+  if (el.prosodyTemplate) el.prosodyTemplate.value = PRESETS.hex;
+  loadScansionCorpus().then(run);
 })();

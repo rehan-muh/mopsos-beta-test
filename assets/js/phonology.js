@@ -193,15 +193,24 @@
     return s;
   }
 
+
+  function sonorityBucketLabel(score, type) {
+    const prefix = type === 'coda' ? 'Coda' : 'Onset';
+    if (score <= 2) return `${prefix}: low sonority`;
+    if (score <= 4) return `${prefix}: medium sonority`;
+    if (score <= 6) return `${prefix}: high sonority`;
+    return `${prefix}: very high sonority`;
+  }
+
   function renderAdvancedPanels(last) {
     if (!last) return;
     const balance = new Map([['vowels', last.vowels], ['consonants', last.consonants]]);
     const sylLen = new Map(last.sylLenEntries);
     const complexity = new Map([
-      ['avg onset length', Number(last.avgOnset.toFixed(2))],
-      ['avg coda length', Number(last.avgCoda.toFixed(2))],
-      ['max onset length', last.maxOnset],
-      ['max coda length', last.maxCoda]
+      ['Average onset cluster length', Number(last.avgOnset.toFixed(2))],
+      ['Average coda cluster length', Number(last.avgCoda.toFixed(2))],
+      ['Maximum onset cluster length', last.maxOnset],
+      ['Maximum coda cluster length', last.maxCoda]
     ]);
     const son = new Map(last.sonorityEntries);
     renderFlexibleBars(el.phonBalanceBars, balance, 6);
@@ -266,9 +275,9 @@
         freqMapAdd(shapes, sp.shape);
         freqMapAdd(sylLen, String([...s].length));
         const onsetCluster = toConsonantCluster(sp.onset);
-        if (onsetCluster && isLegalOnset(onsetCluster)) { freqMapAdd(onsets, onsetCluster); totalOnsetLen += [...onsetCluster].length; onsetCt += 1; maxOnset = Math.max(maxOnset, [...onsetCluster].length); freqMapAdd(son, `onset:${sonorityScore(onsetCluster)}`); }
+        if (onsetCluster && isLegalOnset(onsetCluster)) { freqMapAdd(onsets, onsetCluster); totalOnsetLen += [...onsetCluster].length; onsetCt += 1; maxOnset = Math.max(maxOnset, [...onsetCluster].length); freqMapAdd(son, sonorityBucketLabel(sonorityScore(onsetCluster), 'onset')); }
         const codaCluster = toConsonantCluster(sp.coda);
-        if (codaCluster && isLikelyCodaCluster(codaCluster)) { freqMapAdd(codas, codaCluster); totalCodaLen += [...codaCluster].length; codaCt += 1; maxCoda = Math.max(maxCoda, [...codaCluster].length); freqMapAdd(son, `coda:${sonorityScore(codaCluster)}`); }
+        if (codaCluster && isLikelyCodaCluster(codaCluster)) { freqMapAdd(codas, codaCluster); totalCodaLen += [...codaCluster].length; codaCt += 1; maxCoda = Math.max(maxCoda, [...codaCluster].length); freqMapAdd(son, sonorityBucketLabel(sonorityScore(codaCluster), 'coda')); }
       }
       report.push({ token: raw, cleaned: tok, syllables: syls.join(' · '), shapes: shapeList.join(' ') });
     }

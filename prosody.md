@@ -11,44 +11,7 @@ section: prosody
 </section>
 
 <div class="card">
-  <h2>1. Input verses</h2>
-  <p class="help">Enter one verse per line. You can use a custom template or quick presets for common meters.</p>
-  <div class="grid-3">
-    <div class="field">
-      <label for="prosodyPreset"><strong>Meter preset</strong></label>
-      <select id="prosodyPreset">
-        <option value="">Custom / none</option>
-        <option value="hex">Dactylic hexameter</option>
-        
-      </select>
-    </div>
-    <div class="field startup-actions">
-      <button id="btnApplyPreset" class="btn">Apply preset</button>
-    </div>
-    <div class="field startup-actions">
-      <button id="btnProsodyExport" class="btn">Export scansion report (CSV)</button>
-    </div>
-  </div>
-  <div class="grid-2">
-    <div class="field">
-      <label for="prosodyInput"><strong>Verse text</strong></label>
-      <textarea id="prosodyInput" class="big-textarea">μῆνιν ἄειδε θεὰ Πηληϊάδεω Ἀχιλῆος
-οὐλομένην, ἣ μυρί᾽ Ἀχαιοῖς ἄλγε᾽ ἔθηκε</textarea>
-    </div>
-    <div class="field">
-      <label for="prosodyTemplate"><strong>Meter template (optional)</strong></label>
-      <textarea id="prosodyTemplate" class="big-textarea">– ⏑ ⏑ | – ⏑ ⏑ | – ⏑ ⏑ | – ⏑ ⏑ | – ⏑ ⏑ | – –</textarea>
-    </div>
-  </div>
-  <div class="btn-row">
-    <button id="btnRunProsody" class="btn btn-primary">Run scansion</button>
-    <button id="btnProsodySample" class="btn">Load sample</button>
-  </div>
-</div>
-
-
-<div class="card">
-  <h2>2. Homer scansion corpus (assets/data/scansion)</h2>
+  <h2>1. Homer scansion corpus (assets/data/scansion)</h2>
   <p class="help">Load precomputed Homeric scansion tables (files, lines, words, syllables) for corpus-level metrical statistics.</p>
   <div class="grid-3">
     <div class="field">
@@ -116,7 +79,7 @@ section: prosody
 </div>
 
 <div class="card">
-  <h2>3. Scansion + text</h2>
+  <h2>2. Scansion + text</h2>
   <div id="prosodySummary" class="analysis-wrap"></div>
   <div class="viz-wrap">
     <h3>Verse alignment (text + scansion)</h3>
@@ -136,7 +99,7 @@ section: prosody
 
 
 <div class="card">
-  <h2>4. Advanced visual analytics + line browser</h2>
+  <h2>3. Advanced visual analytics + line browser</h2>
   <div class="grid-3">
     <div class="field">
       <label for="prosodyGraphMode"><strong>Graph mode</strong></label>
@@ -174,4 +137,42 @@ section: prosody
     </div>
   </div>
   <div class="viz-wrap"><h3>Per-line scansion browser</h3><div id="prosodyLineScansionTable"></div></div>
+</div>
+
+
+<div class="card">
+  <h2>4. Pattern clustering + slot repetition analysis</h2>
+  <div class="grid-3">
+    <div class="field">
+      <label for="patternClusterThreshold"><strong>Pattern similarity threshold</strong></label>
+      <input id="patternClusterThreshold" type="text" value="0.70" />
+    </div>
+    <div class="field">
+      <label for="patternClusterTopN"><strong>Top patterns</strong></label>
+      <input id="patternClusterTopN" type="text" value="20" />
+    </div>
+    <div class="field startup-actions">
+      <button id="btnPatternCluster" class="btn btn-primary">Cluster metrical patterns</button>
+    </div>
+  </div>
+  <div id="patternClusterSummary" class="analysis-wrap"></div>
+  <div class="viz-wrap"><h3>Pattern clusters</h3><div id="patternClusterTable"></div></div>
+
+  <div class="grid-3" style="margin-top:.8rem;">
+    <div class="field">
+      <label for="slotFootSelect"><strong>Slot foot</strong></label>
+      <select id="slotFootSelect"><option value="all" selected>All feet</option><option value="1">Foot 1</option><option value="2">Foot 2</option><option value="3">Foot 3</option><option value="4">Foot 4</option><option value="5">Foot 5</option><option value="6">Foot 6</option></select>
+    </div>
+    <div class="field">
+      <label for="slotWordQuery"><strong>Word query (optional)</strong></label>
+      <input id="slotWordQuery" type="text" placeholder="Leave blank to show top-N words by slot" />
+    </div>
+    <div class="field">
+      <label for="slotTopN"><strong>Top N words</strong></label>
+      <input id="slotTopN" type="text" value="25" />
+    </div>
+  </div>
+  <div class="btn-row"><button id="btnSlotRepetition" class="btn">Analyze slot repetition</button></div>
+  <div id="slotRepetitionSummary" class="analysis-wrap"></div>
+  <div class="viz-wrap"><h3>Slot repetition table</h3><div id="slotRepetitionTable"></div></div>
 </div>
