@@ -16,6 +16,18 @@ section: morphology
   <div class="stat-card"><span class="stat-label">After ending filter</span><strong id="statFinal">0</strong></div>
 </div>
 
+
+<div class="card">
+  <h2>Other workbenches</h2>
+  <p class="help">Use the dedicated pages for deeper research pipelines:</p>
+  <div class="btn-row">
+    <a class="btn" href="{{ '/clustering.html' | relative_url }}">Open Clustering Studio</a>
+    <a class="btn" href="{{ '/syntax.html' | relative_url }}">Open Syntax Workbench</a>
+    <a class="btn" href="{{ '/prosody.html' | relative_url }}">Open Prosody Lab</a>
+    <a class="btn" href="{{ '/phonology.html' | relative_url }}">Open Phonology Analyzer</a>
+  </div>
+</div>
+
 ## 1. Start with a dataset
 
 <div class="card">
