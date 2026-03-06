@@ -2,6 +2,7 @@
   const PREFERRED_MORPH_COLS = ["pos","person","number","tense","mood","voice","gender","case"];
   const DEFAULTS = { pos: "n", number: "p", case: "d" };
   const STORAGE_KEY = "gmf_saved_datasets_v1";
+  const CLUSTER_SOURCE_KEY = "gmf_clustering_sources_v1";
   const LAST_AUTO_SLOT = "last_uploaded_auto";
   const BUNDLED_DATASET_URLS = {
     "default.csv": "assets/data/default.csv",
@@ -38,6 +39,10 @@
   function normStr(x) { return String(x ?? "").trim(); }
   function safeSlug(s) { return String(s ?? "").replace(/[^A-Za-z0-9._-]+/g, "_").replace(/_+/g, "_").replace(/^_+|_+$/g, "") || "filtered"; }
   function parseCsvList(s) { return String(s ?? "").split(",").map(x => x.trim()).filter(Boolean); }
+
+  function resolveAssetUrl(path) {
+    try { return new URL(path, document.baseURI).toString(); } catch { return path; }
+  }
 
   function stripGreekDiacritics(s) {
     s = String(s ?? "").trim().normalize("NFD").replace(/\p{M}/gu, "").normalize("NFC").toLowerCase();
@@ -139,6 +144,7 @@
     html += `</tbody></table>`;
     el.tableWrap.innerHTML = html;
     el.previewMeta.textContent = `showing ${nShow} of ${filteredRows.length} rows${rows.length !== filteredRows.length ? ` (filtered from ${rows.length})` : ""}`;
+    setupZoomButtons();
   }
 
   function downloadCsv(rows, suggestedName) {
@@ -171,6 +177,42 @@
     } catch (err) {
       status(`Could not save dataset to browser storage (${err?.name || "storage error"}). Try deleting old saved datasets.`);
       return false;
+    }
+  }
+
+
+
+  function readClusterSources() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(CLUSTER_SOURCE_KEY) || "{}");
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function writeClusterSources(payload) {
+    localStorage.setItem(CLUSTER_SOURCE_KEY, JSON.stringify(payload));
+  }
+
+  function saveClusterSource(name, rows) {
+    if (!rows?.length) return;
+    const payload = readClusterSources();
+    const cols = Object.keys(rows[0]);
+    payload[name] = {
+      savedAt: new Date().toISOString(),
+      rowCount: rows.length,
+      columns: cols,
+      csv: toCsv(rows, cols)
+    };
+    writeClusterSources(payload);
+  }
+
+  function removeClusterSource(name) {
+    const payload = readClusterSources();
+    if (payload[name]) {
+      delete payload[name];
+      writeClusterSources(payload);
     }
   }
 
@@ -344,6 +386,8 @@
     const qObj = currentQuery();
     state.dfMorph = filterRowsByQuery(state.rawRows, qObj).map(r => ({ ...r }));
     state.dfFinal = null;
+    saveClusterSource("morph_filtered", state.dfMorph);
+    removeClusterSource("ending_filtered");
     status(`Morphological query used: ${Object.keys(qObj).length ? JSON.stringify(qObj) : "(no filters)"}\nMorph-filtered shape: (${state.dfMorph.length}, ${state.columns.length})`);
     renderTable(state.dfMorph, 25);
     updateButtonStates();
@@ -391,6 +435,7 @@
       return next;
     });
 
+    saveClusterSource("ending_filtered", state.dfFinal);
     status(
       `Base used: ${state.dfMorph ? "morph-filtered dataframe" : "full df"}\nForm column: ${fc}\n` +
       `Endings (typed): ${JSON.stringify(endingsRaw)}\nMatch mode: ${matchMode}\n` +
@@ -405,6 +450,8 @@
   function resetAll() {
     state.dfMorph = null;
     state.dfFinal = null;
+    removeClusterSource("morph_filtered");
+    removeClusterSource("ending_filtered");
     state.updatingWidgets = true;
     try {
       for (const c of Object.keys(state.dropdowns)) {
@@ -520,6 +567,7 @@
     html += `</tbody></table></div>`;
 
     el.vizWrap.innerHTML = html;
+    setupZoomButtons();
   }
 
 
@@ -623,6 +671,7 @@
       html += `</tbody></table>`;
       el.analysisWrap.innerHTML = html;
     }
+    setupZoomButtons();
   }
   function onDropdownChange(evt) {
     if (state.updatingWidgets) return;
@@ -664,6 +713,7 @@
         const cols = res.meta?.fields || (rows[0] ? Object.keys(rows[0]) : []);
         state.rawRows = rows;
         state.columns = cols;
+        saveClusterSource("raw_loaded", rows);
         state.morphCols = PREFERRED_MORPH_COLS.filter(c => cols.includes(c));
 
         if (!fromSaved && rows.length) {
@@ -706,6 +756,28 @@
   }
 
 
+
+
+  async function fetchBundledCsv(path) {
+    const variants = [
+      path,
+      resolveAssetUrl(path),
+      path.startsWith('/') ? path : `/${path}`,
+      path.startsWith('./') ? path.slice(2) : `./${path}`
+    ];
+    let lastErr = null;
+    for (const candidate of [...new Set(variants)]) {
+      try {
+        const res = await fetch(candidate, { cache: "no-store" });
+        if (res.ok) return { text: await res.text(), url: candidate };
+        lastErr = new Error(`HTTP ${res.status} @ ${candidate}`);
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw lastErr || new Error(`Could not load bundled csv at ${path}`);
+  }
+
   async function loadBundledDefaultCsv() {
     const selected = el.bundledDatasetChoice?.value || "default.csv";
     const selectedUrl = BUNDLED_DATASET_URLS[selected];
@@ -716,17 +788,51 @@
 
     el.loadStatus.textContent = `Loading bundled CSV from ${selectedUrl} ...`;
     try {
-      const res = await fetch(selectedUrl, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const text = await res.text();
-      parseAndLoadCsv(text, selectedUrl, true);
-      status(`Loaded bundled CSV: ${selectedUrl}`);
+      const loaded = await fetchBundledCsv(selectedUrl);
+      parseAndLoadCsv(loaded.text, selectedUrl, true);
+      status(`Loaded bundled CSV: ${loaded.url}`);
     } catch (err) {
       el.loadStatus.textContent = "Bundled CSV not found.";
       status(`Could not load bundled CSV at '${selectedUrl}'.
 Add the file there or update BUNDLED_DATASET_URLS in assets/js/app.js.
 Error: ${String(err)}`);
     }
+  }
+
+
+
+  function setupZoomButtons() {
+    const containers = [el.vizWrap, el.analysisWrap, el.tableWrap].filter(Boolean);
+    for (const c of containers) {
+      if (c.querySelector(":scope > .zoom-btn")) continue;
+      c.classList.add("zoomable");
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "zoom-btn";
+      b.textContent = "⤢ Full view";
+      b.addEventListener("click", () => openZoom(c));
+      c.prepend(b);
+    }
+  }
+
+  function openZoom(container) {
+    let modal = document.getElementById("zoomModal");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "zoomModal";
+      modal.className = "zoom-modal";
+      modal.innerHTML = `<div class="zoom-backdrop"></div><div class="zoom-dialog"><div class="zoom-head"><strong>Expanded graphic</strong><button type="button" class="btn btn-warn zoom-close">Close</button></div><div class="zoom-body"></div></div>`;
+      document.body.appendChild(modal);
+      modal.querySelector(".zoom-backdrop").addEventListener("click", () => modal.classList.remove("open"));
+      modal.querySelector(".zoom-close").addEventListener("click", () => modal.classList.remove("open"));
+    }
+    const body = modal.querySelector(".zoom-body");
+    body.innerHTML = "";
+    const clone = container.cloneNode(true);
+    const btn = clone.querySelector(".zoom-btn");
+    if (btn) btn.remove();
+    body.appendChild(clone);
+    modal.classList.add("open");
   }
 
   function onFileChosen(file) {
@@ -764,4 +870,5 @@ Error: ${String(err)}`);
   updateStats();
   renderVisualization();
   runAnalysis();
+  setupZoomButtons();
 })();

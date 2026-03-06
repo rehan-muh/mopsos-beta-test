@@ -5,8 +5,8 @@ section: morphology
 ---
 
 <section class="hero card">
-  <p class="kicker">Greek NLP Workspace</p>
-  <h1>Greek Morphology + Ending Filter</h1>
+  <p class="kicker">MOPSOS</p>
+  <h1>Morphological analysis and visualization</h1>
   <p class="lead">Analysis and visualization of ancient Greek morphology.</p>
 </section>
 
@@ -16,7 +16,28 @@ section: morphology
   <div class="stat-card"><span class="stat-label">After ending filter</span><strong id="statFinal">0</strong></div>
 </div>
 
-## 1. Start with a dataset
+
+
+<div class="card">
+  <h2>Quick table of contents</h2>
+  <div class="field">
+    <label for="morphToc"><strong>Jump to section</strong></label>
+    <select id="morphToc" onchange="if(this.value) location.hash=this.value;">
+      <option value="">Choose section...</option>
+      <option value="sec-start">1. Start with a dataset</option>
+      <option value="sec-save">1b. Save / Manage datasets</option>
+      <option value="sec-default">1c. Set a default CSV in assets</option>
+      <option value="sec-morph">2. Morphology filter</option>
+      <option value="sec-endings">3. Ending filter</option>
+      <option value="sec-viz">4. Visualization Studio</option>
+      <option value="sec-analysis">5. Analysis dropdowns</option>
+      <option value="sec-download">6. Download filtered CSV</option>
+      <option value="sec-preview">Status / Preview</option>
+    </select>
+  </div>
+</div>
+
+<h2 id="sec-start">1. Start with a dataset</h2>
 
 <div class="card">
   <div class="grid-2">
@@ -36,6 +57,7 @@ section: morphology
         <option value="default.csv">default.csv (Epic corpus)</option>
         <option value="default2.csv">default2.csv (Entire Greek corpus)</option>
       </select>
+      <div class="help" style="margin-top:.35rem;">Direct file links: <a href="{{ '/assets/data/default.csv' | relative_url }}" target="_blank" rel="noopener">default.csv</a> · <a href="{{ '/assets/data/default2.csv' | relative_url }}" target="_blank" rel="noopener">default2.csv</a></div>
     </div>
     <div class="field startup-actions">
       <button id="btnLoadBundled" class="btn">Load selected bundled CSV</button>
@@ -50,7 +72,7 @@ section: morphology
   <div id="loadStatus" class="status muted">No file loaded yet.</div>
 </div>
 
-## 1b. Save / Manage datasets
+<h2 id="sec-save">1b. Save / Manage datasets</h2>
 
 <div class="card">
   <div class="grid-2">
@@ -72,7 +94,7 @@ section: morphology
 </div>
 
 
-## 1c. Set a default CSV in assets
+<h2 id="sec-default">1c. Set a default CSV in assets</h2>
 
 <div class="card">
   <ol>
@@ -83,7 +105,7 @@ section: morphology
   <div class="help">If you want different names/paths, edit <code>BUNDLED_DATASET_URLS</code> in <code>assets/js/app.js</code>. You can still upload your own CSV anytime.</div>
 </div>
 
-## 2. Morphology filter (sequential)
+<h2 id="sec-morph">2. Morphology filter (sequential)</h2>
 
 <div class="card">
   <label class="inline">
@@ -99,7 +121,7 @@ section: morphology
   </div>
 </div>
 
-## 3. Ending filter
+<h2 id="sec-endings">3. Ending filter</h2>
 
 <div class="card">
   <div class="field">
@@ -141,7 +163,7 @@ section: morphology
   </div>
 </div>
 
-## 4. Visualization Studio
+<h2 id="sec-viz">4. Visualization Studio</h2>
 
 <div class="card">
   <div class="grid-3">
@@ -196,7 +218,7 @@ section: morphology
   <div id="vizWrap" class="viz-wrap"></div>
 </div>
 
-## 5. Analysis dropdowns
+<h2 id="sec-analysis">5. Analysis dropdowns</h2>
 
 <div class="card">
   <div class="grid-3">
@@ -228,9 +250,12 @@ section: morphology
   <div id="analysisWrap" class="analysis-wrap"></div>
 </div>
 
-## 6. Download filtered CSV
+<h2 id="sec-download">6. Download filtered CSV</h2>
 
 <div class="card">
+  <div class="help">Tip: when you run morphology/ending filters, snapshots are automatically shared to the Stylometry page as <code>morph_filtered</code> and <code>ending_filtered</code>.</div>
+
+
   <div class="field">
     <label for="baseName"><strong>Base filename</strong></label>
     <input id="baseName" type="text" value="filtered_output" />
@@ -241,7 +266,7 @@ section: morphology
   </div>
 </div>
 
-## Status / Preview
+<h2 id="sec-preview">Status / Preview</h2>
 
 <div class="card">
   <pre id="statusBox" class="status">Load a CSV to begin.</pre>

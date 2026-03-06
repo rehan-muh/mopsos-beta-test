@@ -17,8 +17,8 @@
         <a class="site-brand" href="{{ '/index.html' | relative_url }}">
           <span class="brand-mark" aria-hidden="true">Γ</span>
           <span class="brand-copy">
-            <strong>Greek NLP Tools</strong>
-            <small>Digital Philology Workbench</small>
+            <strong>MOPSOS</strong>
+            <small>Ancient Greek Database of Morphology, Phonology, Syntax, Orality, and Scansion</small>
           </span>
         </a>
 
@@ -26,19 +26,27 @@
           <a href="{{ '/syntax.html' | relative_url }}" class="nav-link{% if page.section == 'syntax' %} is-active{% endif %}">Syntax</a>
           <a href="{{ '/prosody.html' | relative_url }}" class="nav-link{% if page.section == 'prosody' %} is-active{% endif %}">Prosody</a>
           <a href="{{ '/index.html' | relative_url }}" class="nav-link{% if page.section == 'morphology' %} is-active{% endif %}">Morphology</a>
+          <a href="{{ '/clustering.html' | relative_url }}" class="nav-link{% if page.section == 'clustering' %} is-active{% endif %}">Stylometry</a>
+          <a href="{{ '/phonology.html' | relative_url }}" class="nav-link{% if page.section == 'phonology' %} is-active{% endif %}">Phonology</a>
         </nav>
       </div>
     </div>
   </header>
 
+
   <main class="container site-main">
     {{ content }}
   </main>
 
-  {% if page.section == 'morphology' %}
+  {% if page.section == 'morphology' or page.section == 'clustering' or page.section == 'syntax' or page.section == 'prosody' or page.section == 'phonology' %}
   <!-- Lightweight CSV parser -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="{{ '/assets/js/app.js' | relative_url }}"></script>
+  <script src="{{ '/assets/js/analytics-playbook.js' | relative_url }}"></script>
+  {% if page.section == "morphology" %}<script src="{{ '/assets/js/app.js' | relative_url }}"></script>{% endif %}
+  {% if page.section == "clustering" %}<script src="{{ '/assets/js/clustering.js' | relative_url }}"></script>{% endif %}
+  {% if page.section == "syntax" %}<script src="{{ '/assets/js/syntax.js' | relative_url }}"></script>{% endif %}
+  {% if page.section == "prosody" %}<script src="{{ '/assets/js/prosody.js' | relative_url }}"></script>{% endif %}
+  {% if page.section == "phonology" %}<script src="{{ '/assets/js/phonology.js' | relative_url }}"></script>{% endif %}
   {% endif %}
 </body>
 </html>
