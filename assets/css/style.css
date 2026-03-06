@@ -369,3 +369,20 @@ textarea.big-textarea:focus {
 .analysis-wrap {
   background: linear-gradient(180deg, #ffffff, #f8fbff);
 }
+
+
+.hero {
+  border: 1px solid rgba(79, 70, 229, 0.22);
+  box-shadow: 0 20px 40px rgba(79, 70, 229, 0.12);
+}
+.analysis-card {
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+}
+.viz-wrap h3 {
+  margin-top: 0;
+  padding-bottom: .35rem;
+  border-bottom: 1px dashed #d8e3f2;
+}
+.table-wrap {
+  background: linear-gradient(180deg, #ffffff, #fbfdff);
+}

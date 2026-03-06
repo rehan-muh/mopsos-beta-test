@@ -50,3 +50,27 @@ section: phonology
   </div>
   <div class="viz-wrap"><h3>Token-level phonology table</h3><div id="phonTable"></div></div>
 </div>
+
+
+<div class="card">
+  <h2>3. Advanced phonology explorer</h2>
+  <div class="grid-3">
+    <div class="field">
+      <label for="phonGraphMode"><strong>Graph mode</strong></label>
+      <select id="phonGraphMode"><option value="bars" selected>Bars</option><option value="stacked">Stacked</option><option value="table">Table profile</option></select>
+    </div>
+    <div class="field">
+      <label for="phonTopN"><strong>Top N</strong></label>
+      <input id="phonTopN" type="text" value="24" />
+    </div>
+    <div class="field startup-actions"><button id="btnPhonRerender" class="btn">Rerender explorer</button></div>
+  </div>
+  <div class="grid-2">
+    <div class="viz-wrap"><h3>Vowel vs consonant balance</h3><div id="phonBalanceBars"></div></div>
+    <div class="viz-wrap"><h3>Syllable length profile</h3><div id="phonSylLenBars"></div></div>
+  </div>
+  <div class="grid-2">
+    <div class="viz-wrap"><h3>Onset/coda complexity</h3><div id="phonComplexityBars"></div></div>
+    <div class="viz-wrap"><h3>Sonority proxy profile</h3><div id="phonSonorityBars"></div></div>
+  </div>
+</div>

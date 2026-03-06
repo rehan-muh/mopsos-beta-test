@@ -41,7 +41,16 @@
     scansionWordQuery: document.getElementById('scansionWordQuery'),
     btnScansionApplyFilters: document.getElementById('btnScansionApplyFilters'),
     scansionSelectionSummary: document.getElementById('scansionSelectionSummary'),
-    scansionSelectionTable: document.getElementById('scansionSelectionTable')
+    scansionSelectionTable: document.getElementById('scansionSelectionTable'),
+    prosodyGraphMode: document.getElementById('prosodyGraphMode'),
+    prosodyGraphTopN: document.getElementById('prosodyGraphTopN'),
+    btnProsodyRerender: document.getElementById('btnProsodyRerender'),
+    prosodyFootHeat: document.getElementById('prosodyFootHeat'),
+    prosodyHist: document.getElementById('prosodyHist'),
+    scansionLineScope: document.getElementById('scansionLineScope'),
+    scansionLineQuery: document.getElementById('scansionLineQuery'),
+    btnRenderLineScansion: document.getElementById('btnRenderLineScansion'),
+    prosodyLineScansionTable: document.getElementById('prosodyLineScansionTable')
   };
 
   const state = { rows: [], corpus: {}, corpusLoaded: false };
@@ -352,7 +361,9 @@
       ['Word-footend rate (%)', Number(stats.caesuraRate.toFixed(1))]
     ], 6);
     populateScansionFilterOptions(scope);
+    populateLineScopeOptions(scope);
     applySelectionFilters();
+    renderLineScansionBrowser();
     setupZoom();
   }
 
@@ -496,6 +507,178 @@
     setupZoom();
   }
 
+
+  function num(val, d=0) {
+    const n = Number(val);
+    return Number.isFinite(n) ? n : d;
+  }
+
+  function sortNumericStrings(values) {
+    return [...new Set(values)].sort((a,b)=>String(a).localeCompare(String(b), undefined, {numeric:true}));
+  }
+
+  function getGraphTopN() {
+    return Math.max(3, num(el.prosodyGraphTopN?.value, 20));
+  }
+
+  function graphMode() {
+    return (el.prosodyGraphMode?.value || 'bars').toLowerCase();
+  }
+
+  function renderVizRows(target, entries, opts = {}) {
+    if (!target) return;
+    const topN = opts.topN || getGraphTopN();
+    const mode = opts.mode || graphMode();
+    const rows = entries.slice(0, topN);
+    const max = Math.max(...rows.map(([,v])=>num(v,0)), 1);
+    if (!rows.length) { target.innerHTML = '<div class="small-muted">No data.</div>'; return; }
+
+    if (mode === 'radar') {
+      let html = '<div class="table-wrap"><table class="mini-table"><thead><tr><th>Metric</th><th>Value</th><th>Normalized</th></tr></thead><tbody>';
+      for (const [k,v] of rows) {
+        const n = num(v,0) / max;
+        const dots = '●'.repeat(Math.max(1, Math.round(n*20)));
+        html += `<tr><td>${esc(k)}</td><td>${num(v,0)}</td><td style="color:#4338ca;letter-spacing:1px;">${dots}</td></tr>`;
+      }
+      html += '</tbody></table></div>';
+      target.innerHTML = html;
+      return;
+    }
+
+    if (mode === 'stacked') {
+      const total = rows.reduce((a,[,v])=>a+num(v,0), 0) || 1;
+      let html = '<div style="display:flex; gap:.35rem; align-items:center; flex-wrap:wrap; margin:.35rem 0 .7rem;">';
+      for (const [k,v] of rows) {
+        const pct = (num(v,0)/total)*100;
+        html += `<span style="display:inline-flex;align-items:center;gap:.35rem;padding:.25rem .45rem;border:1px solid #dbe4f0;border-radius:999px;background:#fff;"><span style="display:inline-block;width:${Math.max(6,pct*1.8)}px;height:10px;border-radius:999px;background:linear-gradient(90deg,#4f46e5,#22d3ee)"></span><small>${esc(k)} (${pct.toFixed(1)}%)</small></span>`;
+      }
+      html += '</div>';
+      target.innerHTML = html;
+      return;
+    }
+
+    let html = '';
+    for (const [k,v] of rows) {
+      const w = Math.max(3, Math.round((num(v,0)/max)*100));
+      html += `<div class="viz-item"><div class="viz-row"><span class="viz-label">${esc(k)}</span><div class="viz-bar" style="width:${w}%"></div><span class="viz-value">${num(v,0)}</span></div></div>`;
+    }
+    target.innerHTML = html;
+  }
+
+  function aggregateFootHeat(results) {
+    const m = new Map();
+    for (const r of results || []) {
+      const p = r.pattern || [];
+      for (let i = 0; i < p.length; i++) {
+        const key = `pos${i+1}:${p[i]}`;
+        m.set(key, (m.get(key)||0)+1);
+      }
+    }
+    return [...m.entries()].sort((a,b)=>b[1]-a[1]);
+  }
+
+  function aggregateMismatchHistogram(results) {
+    const bins = new Map();
+    for (const r of results || []) {
+      const mis = (r.mismatches || []).length;
+      bins.set(String(mis), (bins.get(String(mis))||0)+1);
+    }
+    return [...bins.entries()].sort((a,b)=>num(a[0],0)-num(b[0],0)).map(([k,v])=>[`mismatches ${k}`, v]);
+  }
+
+  function renderAdvancedProsodyVisuals(results = state.rows) {
+    const footHeat = aggregateFootHeat(results);
+    const mismatchHist = aggregateMismatchHistogram(results);
+    renderVizRows(el.prosodyFootHeat, footHeat, { topN: getGraphTopN() });
+    renderVizRows(el.prosodyHist, mismatchHist, { topN: 30 });
+    if (window.MopsosPlaybook && el.prosodyHist && mismatchHist.length) {
+      const vals = mismatchHist.map(([,v]) => Number(v) || 0);
+      el.prosodyHist.innerHTML += `<div style="margin-top:.55rem;"><h4 style="margin:.2rem 0;">Spark summary</h4>${window.MopsosPlaybook.sparkbar(vals, 560, 60)}</div>`;
+    }
+    setupZoom();
+  }
+
+  function collectLineScansionRows(scope = el.scansionWork?.value || 'all') {
+    if (!state.corpusLoaded) return [];
+    const files = Object.entries(state.corpus).filter(([name]) => fileMatchesScope(name, scope));
+    const lines = files.filter(([n]) => n.endsWith('_lines.csv')).flatMap(([,r])=>r);
+    const words = files.filter(([n]) => n.endsWith('_words.csv')).flatMap(([,r])=>r);
+    const sylls = files.filter(([n]) => n.endsWith('_syllables.csv')).flatMap(([,r])=>r);
+
+    const wordsByLine = new Map();
+    for (const w of words) {
+      const key = `${w.work||''}|${w.book||''}|${w.line_id||''}`;
+      if (!wordsByLine.has(key)) wordsByLine.set(key, []);
+      wordsByLine.get(key).push(w);
+    }
+    const sylByLine = new Map();
+    for (const y of sylls) {
+      const key = `${y.work||''}|${y.book||''}|${y.line_id||''}`;
+      if (!sylByLine.has(key)) sylByLine.set(key, []);
+      sylByLine.get(key).push(y);
+    }
+
+    const out = [];
+    for (const ln of lines) {
+      const key = `${ln.work||''}|${ln.book||''}|${ln.line_id||''}`;
+      const ws = (wordsByLine.get(key) || []).sort((a,b)=>num(a.word_idx)-num(b.word_idx));
+      const sy = (sylByLine.get(key) || []).sort((a,b)=>num(a.syll_order_in_line)-num(b.syll_order_in_line));
+      const lineText = String(ln.line_text || ws.map(w=>w.word_text).join(' ')).trim();
+      const fromSyll = sy.map(s => String(s.quantity||'').toLowerCase().startsWith('l') ? 'L' : 'S').join('');
+      const grouped = [];
+      for (let f = 1; f <= 6; f++) {
+        const bit = sy.filter(s=>String(s.foot||'')===String(f)).map(s => String(s.quantity||'').toLowerCase().startsWith('l') ? 'L' : 'S').join('');
+        if (bit) grouped.push(bit);
+      }
+      out.push({
+        work: String(ln.work||''),
+        book: String(ln.book||''),
+        line_id: String(ln.line_id||''),
+        line_num: String(ln.line_num||''),
+        text: lineText,
+        feet_pattern: String(ln.feet_pattern || grouped.join('|') || fromSyll),
+        words: ws,
+        syllables: sy,
+        word_scansion: ws.map(w => `${w.word_text}(${w.all_quantities || ''})`).join(' · ')
+      });
+    }
+    return out;
+  }
+
+  function populateLineScopeOptions(scope = el.scansionWork?.value || 'all') {
+    if (!el.scansionLineScope) return;
+    const rows = collectLineScansionRows(scope);
+    const books = sortNumericStrings(rows.map(r => `${r.work}:${r.book}`));
+    const current = el.scansionLineScope.value;
+    el.scansionLineScope.innerHTML = '<option value="all">Current scope</option>';
+    for (const b of books) {
+      const o = document.createElement('option');
+      o.value = b;
+      o.textContent = b;
+      el.scansionLineScope.appendChild(o);
+    }
+    if ([...el.scansionLineScope.options].some(o=>o.value===current)) el.scansionLineScope.value=current;
+  }
+
+  function renderLineScansionBrowser() {
+    if (!el.prosodyLineScansionTable) return;
+    const scope = el.scansionWork?.value || 'all';
+    const lineScope = el.scansionLineScope?.value || 'all';
+    const q = normalizeGreekForMatch(el.scansionLineQuery?.value || '').trim();
+    let rows = collectLineScansionRows(scope);
+    if (lineScope !== 'all') rows = rows.filter(r => `${r.work}:${r.book}` === lineScope);
+    if (q) rows = rows.filter(r => normalizeGreekForMatch(r.text).includes(q) || normalizeGreekForMatch(r.word_scansion).includes(q));
+
+    let html = '<div class="table-wrap"><table class="mini-table"><thead><tr><th>Work</th><th>Book</th><th>Line</th><th>Text</th><th>Line scansion</th><th>Word-level scansion</th></tr></thead><tbody>';
+    for (const r of rows.slice(0, 250)) {
+      html += `<tr><td>${esc(r.work)}</td><td>${esc(r.book)}</td><td>${esc(r.line_num || r.line_id)}</td><td>${esc(r.text)}</td><td>${esc(r.feet_pattern)}</td><td>${esc(r.word_scansion)}</td></tr>`;
+    }
+    html += '</tbody></table></div>';
+    el.prosodyLineScansionTable.innerHTML = html;
+    setupZoom();
+  }
+
+
   function setupZoom() {
     const targets = [el.prosodySummary, ...document.querySelectorAll('.viz-wrap')].filter(Boolean);
     for (const c of targets) {
@@ -533,6 +716,7 @@
     renderAlignment(scanned);
     renderBars(scanned);
     renderDiagnostics(scanned);
+    renderAdvancedProsodyVisuals(scanned);
     setupZoom();
   }
 
@@ -546,6 +730,12 @@
   el.btnScansionApplyFilters?.addEventListener('click', applySelectionFilters);
   [el.scansionBookFilter, el.scansionFootFilter, el.scansionHemiFilter, el.scansionQuantityFilter].forEach(x => x?.addEventListener('change', applySelectionFilters));
   el.scansionWordQuery?.addEventListener('input', applySelectionFilters);
+  el.btnProsodyRerender?.addEventListener('click', () => { renderAdvancedProsodyVisuals(state.rows); renderLineScansionBrowser(); });
+  el.btnRenderLineScansion?.addEventListener('click', renderLineScansionBrowser);
+  el.scansionLineScope?.addEventListener('change', renderLineScansionBrowser);
+  el.scansionLineQuery?.addEventListener('input', renderLineScansionBrowser);
+  el.prosodyGraphMode?.addEventListener('change', () => renderAdvancedProsodyVisuals(state.rows));
+  el.prosodyGraphTopN?.addEventListener('change', () => renderAdvancedProsodyVisuals(state.rows));
   el.prosodyTemplate.value = PRESETS.hex;
   run();
   loadScansionCorpus();

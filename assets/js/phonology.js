@@ -20,10 +20,17 @@
     phonCodaBars: document.getElementById('phonCodaBars'),
     phonDiphBars: document.getElementById('phonDiphBars'),
     phonQuantityBars: document.getElementById('phonQuantityBars'),
-    phonTable: document.getElementById('phonTable')
+    phonTable: document.getElementById('phonTable'),
+    phonGraphMode: document.getElementById('phonGraphMode'),
+    phonTopN: document.getElementById('phonTopN'),
+    btnPhonRerender: document.getElementById('btnPhonRerender'),
+    phonBalanceBars: document.getElementById('phonBalanceBars'),
+    phonSylLenBars: document.getElementById('phonSylLenBars'),
+    phonComplexityBars: document.getElementById('phonComplexityBars'),
+    phonSonorityBars: document.getElementById('phonSonorityBars')
   };
 
-  const state = { rows: [], cols: [] };
+  const state = { rows: [], cols: [], lastRun: null };
   const esc = (x) => String(x ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
   function normalizeGreekToken(t) {
@@ -140,6 +147,70 @@
     return 'unknown';
   }
 
+
+  function graphMode() { return (el.phonGraphMode?.value || 'bars').toLowerCase(); }
+  function topN() { return Math.max(3, Number.parseInt(el.phonTopN?.value, 10) || 24); }
+
+  function renderFlexibleBars(target, map, defaultTop = 20) {
+    if (!target || !map) return;
+    const entries = [...map.entries()].sort((a,b)=>b[1]-a[1]).slice(0, topN() || defaultTop);
+    if (!entries.length) { target.innerHTML = '<div class="small-muted">No data.</div>'; return; }
+    const mode = graphMode();
+    if (mode === 'table') {
+      let html='<div class="table-wrap"><table class="mini-table"><thead><tr><th>Item</th><th>Count</th></tr></thead><tbody>';
+      for (const [k,v] of entries) html += `<tr><td>${esc(k)}</td><td>${v}</td></tr>`;
+      html += '</tbody></table></div>';
+      target.innerHTML = html;
+      return;
+    }
+    if (mode === 'stacked') {
+      const total = entries.reduce((a,[,v])=>a+v,0) || 1;
+      let html = '<div style="display:flex;flex-wrap:wrap;gap:.35rem;">';
+      for (const [k,v] of entries) {
+        const pct=(v/total)*100;
+        html += `<span style="display:inline-flex;align-items:center;gap:.35rem;padding:.2rem .45rem;border:1px solid #dbe4f0;border-radius:999px;background:#fff"><span style="display:inline-block;width:${Math.max(6,pct*1.6)}px;height:10px;border-radius:999px;background:linear-gradient(90deg,#4f46e5,#22d3ee)"></span><small>${esc(k)} (${pct.toFixed(1)}%)</small></span>`;
+      }
+      html += '</div>';
+      target.innerHTML = html;
+      return;
+    }
+    renderBars(target, new Map(entries), entries.length);
+  }
+
+  function sonorityScore(cluster) {
+    const c = String(cluster || '');
+    const scales = [
+      [/β|γ|δ|π|κ|τ|φ|χ|θ/g, 1],
+      [/σ|ζ|ξ|ψ/g, 2],
+      [/μ|ν/g, 3],
+      [/λ|ρ/g, 4]
+    ];
+    let s = 0;
+    for (const [re, w] of scales) {
+      const m = c.match(re);
+      if (m) s += m.length * w;
+    }
+    return s;
+  }
+
+  function renderAdvancedPanels(last) {
+    if (!last) return;
+    const balance = new Map([['vowels', last.vowels], ['consonants', last.consonants]]);
+    const sylLen = new Map(last.sylLenEntries);
+    const complexity = new Map([
+      ['avg onset length', Number(last.avgOnset.toFixed(2))],
+      ['avg coda length', Number(last.avgCoda.toFixed(2))],
+      ['max onset length', last.maxOnset],
+      ['max coda length', last.maxCoda]
+    ]);
+    const son = new Map(last.sonorityEntries);
+    renderFlexibleBars(el.phonBalanceBars, balance, 6);
+    renderFlexibleBars(el.phonSylLenBars, sylLen, 12);
+    renderFlexibleBars(el.phonComplexityBars, complexity, 8);
+    renderFlexibleBars(el.phonSonorityBars, son, 16);
+  }
+
+
   function parseCsv(text, name='uploaded.csv') {
     el.phonLoadStatus.textContent = `Loading ${name}...`;
     Papa.parse(text, { header:true, skipEmptyLines:true, complete: (res) => {
@@ -175,13 +246,15 @@
     if (!col) return;
     const phonemes = new Map(), shapes = new Map(), onsets = new Map(), codas = new Map(), diphthongs = new Map(), quantity = new Map();
     const report=[];
-    let totalSyl=0;
+    let totalSyl=0, vowels=0, consonants=0, totalOnsetLen=0, totalCodaLen=0, onsetCt=0, codaCt=0, maxOnset=0, maxCoda=0;
+    const sylLen = new Map();
+    const son = new Map();
 
     for (const r of state.rows) {
       const raw = String(r[col] || '').trim();
       const tok = normalizeGreekToken(raw);
       if (!tok) continue;
-      for (const ch of [...tok]) freqMapAdd(phonemes, ch);
+      for (const ch of [...tok]) { freqMapAdd(phonemes, ch); if (VOWELS.test(ch)) vowels += 1; else if (CONSONANTS.test(ch)) consonants += 1; }
       const syls = syllabify(tok);
       totalSyl += syls.length;
       const shapeList=[];
@@ -191,10 +264,11 @@
         if (DIPHTHONGS.has(sp.nucleus)) freqMapAdd(diphthongs, sp.nucleus);
         freqMapAdd(quantity, classifyVowelQuantity(sp.nucleus));
         freqMapAdd(shapes, sp.shape);
+        freqMapAdd(sylLen, String([...s].length));
         const onsetCluster = toConsonantCluster(sp.onset);
-        if (onsetCluster && isLegalOnset(onsetCluster)) freqMapAdd(onsets, onsetCluster);
+        if (onsetCluster && isLegalOnset(onsetCluster)) { freqMapAdd(onsets, onsetCluster); totalOnsetLen += [...onsetCluster].length; onsetCt += 1; maxOnset = Math.max(maxOnset, [...onsetCluster].length); freqMapAdd(son, `onset:${sonorityScore(onsetCluster)}`); }
         const codaCluster = toConsonantCluster(sp.coda);
-        if (codaCluster && isLikelyCodaCluster(codaCluster)) freqMapAdd(codas, codaCluster);
+        if (codaCluster && isLikelyCodaCluster(codaCluster)) { freqMapAdd(codas, codaCluster); totalCodaLen += [...codaCluster].length; codaCt += 1; maxCoda = Math.max(maxCoda, [...codaCluster].length); freqMapAdd(son, `coda:${sonorityScore(codaCluster)}`); }
       }
       report.push({ token: raw, cleaned: tok, syllables: syls.join(' · '), shapes: shapeList.join(' ') });
     }
@@ -212,6 +286,16 @@
     renderBars(el.phonCodaBars, codas, 20);
     renderBars(el.phonDiphBars, diphthongs, 12);
     renderBars(el.phonQuantityBars, quantity, 8);
+
+    state.lastRun = {
+      vowels, consonants,
+      sylLenEntries: [...sylLen.entries()].sort((a,b)=>Number(a[0])-Number(b[0])),
+      avgOnset: onsetCt ? (totalOnsetLen/onsetCt) : 0,
+      avgCoda: codaCt ? (totalCodaLen/codaCt) : 0,
+      maxOnset, maxCoda,
+      sonorityEntries: [...son.entries()].sort((a,b)=>b[1]-a[1])
+    };
+    renderAdvancedPanels(state.lastRun);
 
     let html='<table class="mini-table"><thead><tr><th>Token</th><th>Normalized</th><th>Syllables</th><th>Shapes</th></tr></thead><tbody>';
     for (const row of report.slice(0,300)) html += `<tr><td>${esc(row.token)}</td><td>${esc(row.cleaned)}</td><td>${esc(row.syllables)}</td><td>${esc(row.shapes)}</td></tr>`;
@@ -279,5 +363,8 @@
   el.phonCsvFile.addEventListener('change',e=>{ const f=e.target.files?.[0]; if(f) f.text().then(t=>parseCsv(t,f.name)); });
   el.btnPhonLoadBundled.addEventListener('click', () => loadBundled(false));
   el.btnRunPhon.addEventListener('click', run);
+  el.btnPhonRerender?.addEventListener('click', () => renderAdvancedPanels(state.lastRun));
+  el.phonGraphMode?.addEventListener('change', () => renderAdvancedPanels(state.lastRun));
+  el.phonTopN?.addEventListener('change', () => renderAdvancedPanels(state.lastRun));
   loadBundled(true);
 })();

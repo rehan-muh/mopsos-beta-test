@@ -133,3 +133,45 @@ section: prosody
     </div>
   </div>
 </div>
+
+
+<div class="card">
+  <h2>4. Advanced visual analytics + line browser</h2>
+  <div class="grid-3">
+    <div class="field">
+      <label for="prosodyGraphMode"><strong>Graph mode</strong></label>
+      <select id="prosodyGraphMode">
+        <option value="bars" selected>Bars</option>
+        <option value="stacked">Stacked profile</option>
+        <option value="radar">Radar-like profile</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="prosodyGraphTopN"><strong>Top N entries</strong></label>
+      <input id="prosodyGraphTopN" type="text" value="20" />
+    </div>
+    <div class="field startup-actions">
+      <button id="btnProsodyRerender" class="btn">Rerender analytics</button>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="viz-wrap"><h3>Foot-position stress map</h3><div id="prosodyFootHeat"></div></div>
+    <div class="viz-wrap"><h3>Caesura + mismatch histogram</h3><div id="prosodyHist"></div></div>
+  </div>
+  <div class="grid-3">
+    <div class="field">
+      <label for="scansionLineScope"><strong>Line scope</strong></label>
+      <select id="scansionLineScope">
+        <option value="all" selected>Current scope</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="scansionLineQuery"><strong>Line contains word</strong></label>
+      <input id="scansionLineQuery" type="text" placeholder="e.g. Ἀχιλῆος" />
+    </div>
+    <div class="field startup-actions">
+      <button id="btnRenderLineScansion" class="btn btn-primary">Display per-line scansion</button>
+    </div>
+  </div>
+  <div class="viz-wrap"><h3>Per-line scansion browser</h3><div id="prosodyLineScansionTable"></div></div>
+</div>
