@@ -231,6 +231,9 @@ section: morphology
 ## 6. Download filtered CSV
 
 <div class="card">
+  <div class="help">Tip: when you run morphology/ending filters, snapshots are automatically shared to the Clustering page as <code>morph_filtered</code> and <code>ending_filtered</code>.</div>
+
+
   <div class="field">
     <label for="baseName"><strong>Base filename</strong></label>
     <input id="baseName" type="text" value="filtered_output" />

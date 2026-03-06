@@ -234,3 +234,87 @@ table.preview th { position: sticky; top: 0; background: #f8fafc; z-index: 1; }
 .viz-legend { margin-top: .7rem; border-top: 1px dashed #dbe5f0; padding-top: .55rem; }
 .viz-legend h4 { margin: 0 0 .4rem; font-size: .86rem; color: #334155; }
 .viz-dot { width: 10px; height: 10px; border-radius: 999px; background: #4f46e5; display: inline-block; margin-right: .5rem; }
+
+
+.cluster-svg {
+  width: 100%;
+  height: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+#clusterHeatmap .table-wrap {
+  max-height: 420px;
+}
+
+#clusterFeatures td {
+  vertical-align: top;
+}
+
+
+.zoomable { position: relative; }
+.zoom-btn {
+  position: absolute;
+  top: .45rem;
+  right: .45rem;
+  z-index: 3;
+  border: 1px solid #cbd5e1;
+  background: rgba(255,255,255,.93);
+  color: #1e293b;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: .74rem;
+  padding: .22rem .55rem;
+  cursor: pointer;
+}
+.zoom-modal { position: fixed; inset: 0; display: none; z-index: 2000; }
+.zoom-modal.open { display: block; }
+.zoom-backdrop { position: absolute; inset: 0; background: rgba(15,23,42,.62); }
+.zoom-dialog {
+  position: absolute;
+  inset: 4vh 4vw;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #cbd5e1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.zoom-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: .6rem .8rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+.zoom-body { padding: .75rem; overflow: auto; }
+.zoom-body .cluster-svg { min-width: 980px; }
+
+
+textarea.big-textarea {
+  width: 100%;
+  min-height: 170px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: .62rem .72rem;
+  background: rgba(255,255,255,.96);
+  color: var(--text);
+  font: 15px/1.5 "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+}
+textarea.big-textarea:focus {
+  outline: 2px solid #c7d2fe;
+  border-color: #a5b4fc;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, .1);
+}
+
+#syntaxPhrase {
+  white-space: pre;
+  overflow: auto;
+}
+
+#prosodyAlignment td,
+#syntaxTable td {
+  vertical-align: top;
+}
