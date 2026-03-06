@@ -33,7 +33,15 @@
     scansionLinesByWork: document.getElementById('scansionLinesByWork'),
     scansionFeetPatterns: document.getElementById('scansionFeetPatterns'),
     scansionQuantityProfile: document.getElementById('scansionQuantityProfile'),
-    scansionPacingProfile: document.getElementById('scansionPacingProfile')
+    scansionPacingProfile: document.getElementById('scansionPacingProfile'),
+    scansionBookFilter: document.getElementById('scansionBookFilter'),
+    scansionFootFilter: document.getElementById('scansionFootFilter'),
+    scansionHemiFilter: document.getElementById('scansionHemiFilter'),
+    scansionQuantityFilter: document.getElementById('scansionQuantityFilter'),
+    scansionWordQuery: document.getElementById('scansionWordQuery'),
+    btnScansionApplyFilters: document.getElementById('btnScansionApplyFilters'),
+    scansionSelectionSummary: document.getElementById('scansionSelectionSummary'),
+    scansionSelectionTable: document.getElementById('scansionSelectionTable')
   };
 
   const state = { rows: [], corpus: {}, corpusLoaded: false };
@@ -343,6 +351,8 @@
       ['Avg words/line', Number(stats.avgWords.toFixed(2))],
       ['Word-footend rate (%)', Number(stats.caesuraRate.toFixed(1))]
     ], 6);
+    populateScansionFilterOptions(scope);
+    applySelectionFilters();
     setupZoom();
   }
 
@@ -369,6 +379,121 @@
     const rowCt = Object.values(loaded).reduce((a, rows) => a + rows.length, 0);
     el.scansionLoadStatus.textContent = `Loaded ${Object.keys(loaded).length}/${SCANSION_FILES.length} files (${rowCt} rows).${errs.length ? ` Missing: ${errs.length} file(s).` : ''}`;
     renderCorpusStats(el.scansionWork?.value || 'all');
+  }
+
+
+  function normalizeGreekForMatch(text) {
+    return String(text || '')
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toLowerCase()
+      .replace(/ς/g, 'σ');
+  }
+
+  function setSelectOptions(select, values, placeholder = 'All') {
+    if (!select) return;
+    const current = select.value;
+    select.innerHTML = '';
+    const base = document.createElement('option');
+    base.value = 'all';
+    base.textContent = placeholder;
+    select.appendChild(base);
+    for (const v of values) {
+      const opt = document.createElement('option');
+      opt.value = String(v);
+      opt.textContent = String(v);
+      select.appendChild(opt);
+    }
+    if ([...select.options].some(o => o.value === current)) select.value = current;
+  }
+
+  function populateScansionFilterOptions(scope = el.scansionWork?.value || 'all') {
+    if (!state.corpusLoaded) return;
+    const files = Object.entries(state.corpus).filter(([name]) => fileMatchesScope(name, scope));
+    const lineRows = files.filter(([name]) => name.endsWith('_lines.csv')).flatMap(([, rows]) => rows);
+    const bookVals = [...new Set(lineRows.map(r => String(r.book || '').trim()).filter(Boolean))]
+      .sort((a,b)=>a.localeCompare(b, undefined, {numeric:true}));
+    setSelectOptions(el.scansionBookFilter, bookVals, 'All books');
+  }
+
+  function buildSelectionRows(scope = el.scansionWork?.value || 'all') {
+    if (!state.corpusLoaded) return [];
+    const files = Object.entries(state.corpus).filter(([name]) => fileMatchesScope(name, scope));
+    const words = files.filter(([n]) => n.endsWith('_words.csv')).flatMap(([,r])=>r);
+    const sylls = files.filter(([n]) => n.endsWith('_syllables.csv')).flatMap(([,r])=>r);
+
+    const syllByLineWord = new Map();
+    for (const s of sylls) {
+      const key = `${s.work||''}|${s.book||''}|${s.line_id||''}|${s.word_idx||''}`;
+      if (!syllByLineWord.has(key)) syllByLineWord.set(key, []);
+      syllByLineWord.get(key).push(s);
+    }
+
+    const out = [];
+    for (const w of words) {
+      const key = `${w.work||''}|${w.book||''}|${w.line_id||''}|${w.word_idx||''}`;
+      const group = syllByLineWord.get(key) || [];
+      const feet = [...new Set(group.map(x => String(x.foot || '').trim()).filter(Boolean))].join(',');
+      const hemis = [...new Set(group.map(x => String(x.hemi || '').trim()).filter(Boolean))].join(',');
+      const qty = group.map(x => String(x.quantity || '').toLowerCase()).filter(Boolean);
+      const hasLong = qty.includes('long');
+      const hasShort = qty.includes('short');
+      out.push({
+        work: String(w.work || '').trim(),
+        book: String(w.book || '').trim(),
+        line_id: String(w.line_id || '').trim(),
+        line_num: String(w.line_num || '').trim(),
+        word_idx: String(w.word_idx || '').trim(),
+        word_text: String(w.word_text || '').trim(),
+        all_quantities: String(w.all_quantities || '').trim(),
+        start_foot: String(w.start_foot || '').trim(),
+        end_foot: String(w.end_foot || '').trim(),
+        feet,
+        hemis,
+        hasLong,
+        hasShort,
+        contains_footend: Number(w.contains_footend || 0)
+      });
+    }
+    return out;
+  }
+
+  function applySelectionFilters() {
+    if (!state.corpusLoaded || !el.scansionSelectionTable) return;
+    const scope = el.scansionWork?.value || 'all';
+    const book = el.scansionBookFilter?.value || 'all';
+    const foot = el.scansionFootFilter?.value || 'all';
+    const hemi = el.scansionHemiFilter?.value || 'all';
+    const quantity = (el.scansionQuantityFilter?.value || 'all').toLowerCase();
+    const qWordRaw = (el.scansionWordQuery?.value || '').trim();
+    const qWord = normalizeGreekForMatch(qWordRaw);
+
+    const rows = buildSelectionRows(scope).filter(r => {
+      if (book !== 'all' && String(r.book) !== String(book)) return false;
+      if (foot !== 'all' && !(r.feet.split(',').includes(String(foot)) || r.start_foot === String(foot) || r.end_foot === String(foot))) return false;
+      if (hemi !== 'all' && !r.hemis.split(',').includes(String(hemi))) return false;
+      if (quantity === 'long' && !r.hasLong) return false;
+      if (quantity === 'short' && !r.hasShort) return false;
+      if (qWord && !normalizeGreekForMatch(r.word_text).includes(qWord)) return false;
+      return true;
+    });
+
+    const footendRate = rows.length ? (rows.filter(r => r.contains_footend).length / rows.length) * 100 : 0;
+    if (el.scansionSelectionSummary) {
+      el.scansionSelectionSummary.innerHTML = `<div class="analysis-grid">
+        <div class="analysis-card"><span class="label">Matching words</span><div class="value">${rows.length}</div></div>
+        <div class="analysis-card"><span class="label">Unique lines</span><div class="value">${new Set(rows.map(r => `${r.work}:${r.book}:${r.line_id}`)).size}</div></div>
+        <div class="analysis-card"><span class="label">Books hit</span><div class="value">${new Set(rows.map(r => `${r.work}:${r.book}`)).size}</div></div>
+        <div class="analysis-card"><span class="label">Foot-end words</span><div class="value">${footendRate.toFixed(1)}%</div></div>
+      </div>`;
+    }
+
+    const sample = rows.slice(0, 300);
+    let html = '<div class="table-wrap"><table class="mini-table"><thead><tr><th>Work</th><th>Book</th><th>Line</th><th>Word #</th><th>Word</th><th>Feet</th><th>Hemi</th><th>Quantities</th><th>Foot-end</th></tr></thead><tbody>';
+    for (const r of sample) html += `<tr><td>${esc(r.work)}</td><td>${esc(r.book)}</td><td>${esc(r.line_num || r.line_id)}</td><td>${esc(r.word_idx)}</td><td>${esc(r.word_text)}</td><td>${esc(r.feet || `${r.start_foot}-${r.end_foot}`)}</td><td>${esc(r.hemis || '-')}</td><td>${esc(r.all_quantities)}</td><td>${r.contains_footend ? 'yes' : 'no'}</td></tr>`;
+    html += '</tbody></table></div>';
+    el.scansionSelectionTable.innerHTML = html;
+    setupZoom();
   }
 
   function setupZoom() {
@@ -418,6 +543,9 @@
   el.btnLoadScansionCorpus?.addEventListener('click', loadScansionCorpus);
   el.btnScansionRefresh?.addEventListener('click', () => renderCorpusStats(el.scansionWork?.value || 'all'));
   el.scansionWork?.addEventListener('change', () => renderCorpusStats(el.scansionWork.value));
+  el.btnScansionApplyFilters?.addEventListener('click', applySelectionFilters);
+  [el.scansionBookFilter, el.scansionFootFilter, el.scansionHemiFilter, el.scansionQuantityFilter].forEach(x => x?.addEventListener('change', applySelectionFilters));
+  el.scansionWordQuery?.addEventListener('input', applySelectionFilters);
   el.prosodyTemplate.value = PRESETS.hex;
   run();
   loadScansionCorpus();

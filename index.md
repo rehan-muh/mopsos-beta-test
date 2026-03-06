@@ -57,6 +57,7 @@ section: morphology
         <option value="default.csv">default.csv (Epic corpus)</option>
         <option value="default2.csv">default2.csv (Entire Greek corpus)</option>
       </select>
+      <div class="help" style="margin-top:.35rem;">Direct file links: <a href="{{ '/assets/data/default.csv' | relative_url }}" target="_blank" rel="noopener">default.csv</a> · <a href="{{ '/assets/data/default2.csv' | relative_url }}" target="_blank" rel="noopener">default2.csv</a></div>
     </div>
     <div class="field startup-actions">
       <button id="btnLoadBundled" class="btn">Load selected bundled CSV</button>

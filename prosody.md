@@ -77,6 +77,42 @@ section: prosody
     <div class="viz-wrap"><h3>Syllable quantity profile</h3><div id="scansionQuantityProfile"></div></div>
     <div class="viz-wrap"><h3>Line-level pacing</h3><div id="scansionPacingProfile"></div></div>
   </div>
+
+  <h3 style="margin-top:1rem;">Selection explorer</h3>
+  <div class="grid-3">
+    <div class="field">
+      <label for="scansionBookFilter"><strong>Book</strong></label>
+      <select id="scansionBookFilter"><option value="all">All books</option></select>
+    </div>
+    <div class="field">
+      <label for="scansionFootFilter"><strong>Metrical foot</strong></label>
+      <select id="scansionFootFilter">
+        <option value="all">All feet</option>
+        <option value="1">Foot 1</option><option value="2">Foot 2</option><option value="3">Foot 3</option>
+        <option value="4">Foot 4</option><option value="5">Foot 5</option><option value="6">Foot 6</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="scansionHemiFilter"><strong>Hemistich</strong></label>
+      <select id="scansionHemiFilter"><option value="all">All</option><option value="1">1st hemi</option><option value="2">2nd hemi</option></select>
+    </div>
+  </div>
+  <div class="grid-3">
+    <div class="field">
+      <label for="scansionQuantityFilter"><strong>Syllable quantity</strong></label>
+      <select id="scansionQuantityFilter"><option value="all">All</option><option value="long">Long</option><option value="short">Short</option></select>
+    </div>
+    <div class="field">
+      <label for="scansionWordQuery"><strong>Word contains</strong></label>
+      <input id="scansionWordQuery" type="text" placeholder="e.g. μῆνιν" />
+    </div>
+    <div class="field startup-actions">
+      <button id="btnScansionApplyFilters" class="btn btn-primary">Apply selection filters</button>
+    </div>
+  </div>
+  <div id="scansionSelectionSummary" class="analysis-wrap"></div>
+  <div class="viz-wrap"><h3>Filtered selection table</h3><div id="scansionSelectionTable"></div></div>
+
 </div>
 
 <div class="card">
