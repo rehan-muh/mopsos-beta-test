@@ -122,6 +122,11 @@
 
   function escapeHtml(v) { return String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
   function status(text) { el.statusBox.textContent = text; }
+  function setLoadingStatus(target, text = "Loading ...") {
+    if (!target) return;
+    target.classList.add("loading-note");
+    target.innerHTML = `<span>${escapeHtml(text)}</span><span class="loading-bar" aria-hidden="true"></span><strong>Please wait</strong>`;
+  }
 
   function getPreviewRows(rows) {
     const term = normStr(el.previewSearch.value).toLowerCase();
@@ -707,13 +712,14 @@
 
   function parseAndLoadCsv(text, fileName = "uploaded.csv", fromSaved = false) {
     state.fileName = fileName;
-    el.loadStatus.textContent = `Loading ${fileName} ...`;
+    setLoadingStatus(el.loadStatus, `Loading ${fileName} ...`);
 
     Papa.parse(text, {
       header: true,
       skipEmptyLines: true,
       dynamicTyping: false,
       complete: (res) => {
+        el.loadStatus.classList.remove("loading-note");
         el.loadStatus.textContent = res.errors?.length ? `Loaded with ${res.errors.length} parse warning(s).` : `Loaded ${fileName}${fromSaved ? " (saved dataset)" : ""}`;
         const rows = (res.data || []).map((r, i) => ({ ...r, _row_order: i }));
         const cols = res.meta?.fields || (rows[0] ? Object.keys(rows[0]) : []);
@@ -755,6 +761,7 @@
         renderTable(rows, 15);
       },
       error: (err) => {
+        el.loadStatus.classList.remove("loading-note");
         el.loadStatus.textContent = "Failed to parse CSV.";
         status(`CSV parse error: ${String(err)}`);
       }
@@ -792,17 +799,20 @@
       return;
     }
 
-    el.loadStatus.textContent = `Loading bundled CSV from ${selectedUrl} ...`;
-    try {
-      const loaded = await fetchBundledCsv(selectedUrl);
-      parseAndLoadCsv(loaded.text, selectedUrl, true);
-      status(`Loaded bundled CSV: ${loaded.url}`);
-    } catch (err) {
-      el.loadStatus.textContent = "Bundled CSV not found.";
-      status(`Could not load bundled CSV at '${selectedUrl}'.
-Add the file there or update BUNDLED_DATASET_URLS in assets/js/app.js.
-Error: ${String(err)}`);
+    setLoadingStatus(el.loadStatus, `Loading bundled CSV from ${selectedUrl} ...`);
+    const fallbacks = [...new Set([selectedUrl, ...Object.values(BUNDLED_DATASET_URLS)])];
+    for (const candidate of fallbacks) {
+      try {
+        const loaded = await fetchBundledCsv(candidate);
+        parseAndLoadCsv(loaded.text, selected, true);
+        status(`Loaded bundled CSV: ${loaded.url}`);
+        return;
+      } catch (_) {}
     }
+    el.loadStatus.classList.remove("loading-note");
+    el.loadStatus.textContent = "Bundled CSV not found.";
+    status(`Could not load bundled CSV at '${selectedUrl}'.
+Add the file there or update BUNDLED_DATASET_URLS in assets/js/app.js.`);
   }
 
 

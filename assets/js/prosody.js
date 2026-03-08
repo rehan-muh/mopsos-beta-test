@@ -39,6 +39,10 @@
     scansionHemiFilter: document.getElementById('scansionHemiFilter'),
     scansionQuantityFilter: document.getElementById('scansionQuantityFilter'),
     scansionWordQuery: document.getElementById('scansionWordQuery'),
+    scansionWordMatchMode: document.getElementById('scansionWordMatchMode'),
+    scansionWordColumn: document.getElementById('scansionWordColumn'),
+    scansionRegexInsensitive: document.getElementById('scansionRegexInsensitive'),
+    scansionRegexUnicode: document.getElementById('scansionRegexUnicode'),
     btnScansionApplyFilters: document.getElementById('btnScansionApplyFilters'),
     scansionSelectionSummary: document.getElementById('scansionSelectionSummary'),
     scansionSelectionTable: document.getElementById('scansionSelectionTable'),
@@ -67,6 +71,12 @@
   const state = { rows: [], corpus: {}, corpusLoaded: false };
   const norm = (s) => String(s || '').trim();
   const esc = (x) => String(x ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  function setLoadingStatus(target, text='Loading...') {
+    if (!target) return;
+    target.classList.add('loading-note');
+    target.innerHTML = `<span>${esc(text)}</span><span class="loading-bar" aria-hidden="true"></span><strong>Please wait</strong>`;
+  }
 
   function normalizeGreek(text) {
     return String(text || '')
@@ -380,7 +390,7 @@
 
   async function loadScansionCorpus() {
     if (!el.scansionLoadStatus) return;
-    el.scansionLoadStatus.textContent = 'Loading scansion corpus tables...';
+    setLoadingStatus(el.scansionLoadStatus, 'Loading scansion corpus tables...');
     const loaded = {};
     const errs = [];
     for (const f of SCANSION_FILES) {
@@ -395,10 +405,12 @@
     state.corpus = loaded;
     state.corpusLoaded = Object.keys(loaded).length > 0;
     if (!state.corpusLoaded) {
+      el.scansionLoadStatus.classList.remove('loading-note');
       el.scansionLoadStatus.textContent = `Could not load scansion files. Put CSVs in assets/data/scansion/.`;
       return;
     }
     const rowCt = Object.values(loaded).reduce((a, rows) => a + rows.length, 0);
+    el.scansionLoadStatus.classList.remove('loading-note');
     el.scansionLoadStatus.textContent = `Loaded ${Object.keys(loaded).length}/${SCANSION_FILES.length} files (${rowCt} rows).${errs.length ? ` Missing: ${errs.length} file(s).` : ''}`;
     renderCorpusStats(el.scansionWork?.value || 'all');
   }
@@ -410,6 +422,25 @@
       .replace(/[̀-ͯ]/g, '')
       .toLowerCase()
       .replace(/ς/g, 'σ');
+  }
+
+
+  function dedupeAdjacent(words) {
+    const out = [];
+    for (const w of words || []) if (!out.length || out[out.length - 1] !== w) out.push(w);
+    return out;
+  }
+
+  function shouldMatchWord(value, query, mode, regexFlags = 'iu') {
+    const hay = normalizeGreekForMatch(value || '');
+    if (!query) return true;
+    if (mode === 'equals') return hay === query;
+    if (mode === 'startsWith') return hay.startsWith(query);
+    if (mode === 'endsWith') return hay.endsWith(query);
+    if (mode === 'regex') {
+      try { return new RegExp(query, regexFlags).test(hay); } catch { return false; }
+    }
+    return hay.includes(query);
   }
 
   function setSelectOptions(select, values, placeholder = 'All') {
@@ -467,6 +498,8 @@
         line_num: String(w.line_num || '').trim(),
         word_idx: String(w.word_idx || '').trim(),
         word_text: String(w.word_text || '').trim(),
+        form: String(w.form || w.word_text || '').trim(),
+        lemma: String(w.lemma || '').trim(),
         all_quantities: String(w.all_quantities || '').trim(),
         start_foot: String(w.start_foot || '').trim(),
         end_foot: String(w.end_foot || '').trim(),
@@ -489,6 +522,9 @@
     const quantity = (el.scansionQuantityFilter?.value || 'all').toLowerCase();
     const qWordRaw = (el.scansionWordQuery?.value || '').trim();
     const qWord = normalizeGreekForMatch(qWordRaw);
+    const matchMode = el.scansionWordMatchMode?.value || 'contains';
+    const searchCol = el.scansionWordColumn?.value || 'word_text';
+    const regexFlags = `${el.scansionRegexInsensitive?.checked ? 'i' : ''}${el.scansionRegexUnicode?.checked ? 'u' : ''}` || 'u';
 
     const rows = buildSelectionRows(scope).filter(r => {
       if (book !== 'all' && String(r.book) !== String(book)) return false;
@@ -496,7 +532,8 @@
       if (hemi !== 'all' && !r.hemis.split(',').includes(String(hemi))) return false;
       if (quantity === 'long' && !r.hasLong) return false;
       if (quantity === 'short' && !r.hasShort) return false;
-      if (qWord && !normalizeGreekForMatch(r.word_text).includes(qWord)) return false;
+      const val = String(r[searchCol] ?? r.word_text ?? '');
+      if (!shouldMatchWord(val, qWord, matchMode, regexFlags)) return false;
       return true;
     });
 
@@ -511,9 +548,9 @@
     }
 
     const sample = rows.slice(0, 300);
-    let html = '<div class="table-wrap"><table class="mini-table"><thead><tr><th>Work</th><th>Book</th><th>Line</th><th>Word #</th><th>Word</th><th>Feet</th><th>Hemi</th><th>Quantities</th><th>Foot-end</th></tr></thead><tbody>';
+    let html = '<div class="collapsible-table"><details><summary>Selection rows (' + rows.length + ') — click to expand/collapse</summary><div class="table-wrap"><table class="mini-table"><thead><tr><th>Work</th><th>Book</th><th>Line</th><th>Word #</th><th>Word</th><th>Feet</th><th>Hemi</th><th>Quantities</th><th>Foot-end</th></tr></thead><tbody>';
     for (const r of sample) html += `<tr><td>${esc(r.work)}</td><td>${esc(r.book)}</td><td>${esc(r.line_num || r.line_id)}</td><td>${esc(r.word_idx)}</td><td>${esc(r.word_text)}</td><td>${esc(r.feet || `${r.start_foot}-${r.end_foot}`)}</td><td>${esc(r.hemis || '-')}</td><td>${esc(r.all_quantities)}</td><td>${r.contains_footend ? 'yes' : 'no'}</td></tr>`;
-    html += '</tbody></table></div>';
+    html += '</tbody></table></div></details></div>';
     el.scansionSelectionTable.innerHTML = html;
     setupZoom();
   }
@@ -680,11 +717,11 @@
     if (lineScope !== 'all') rows = rows.filter(r => `${r.work}:${r.book}` === lineScope);
     if (q) rows = rows.filter(r => normalizeGreekForMatch(r.text).includes(q) || normalizeGreekForMatch(r.word_scansion).includes(q));
 
-    let html = '<div class="table-wrap"><table class="mini-table"><thead><tr><th>Work</th><th>Book</th><th>Line</th><th>Text</th><th>Line scansion</th><th>Word-level scansion</th></tr></thead><tbody>';
+    let html = '<div class="collapsible-table"><details><summary>Per-line rows (' + rows.length + ') — click to expand/collapse</summary><div class="table-wrap"><table class="mini-table"><thead><tr><th>Work</th><th>Book</th><th>Line</th><th>Text</th><th>Line scansion</th><th>Word-level scansion</th></tr></thead><tbody>';
     for (const r of rows.slice(0, 250)) {
       html += `<tr><td>${esc(r.work)}</td><td>${esc(r.book)}</td><td>${esc(r.line_num || r.line_id)}</td><td>${esc(r.text)}</td><td>${esc(r.feet_pattern)}</td><td>${esc(r.word_scansion)}</td></tr>`;
     }
-    html += '</tbody></table></div>';
+    html += '</tbody></table></div></details></div>';
     el.prosodyLineScansionTable.innerHTML = html;
     setupZoom();
   }
@@ -835,7 +872,7 @@
         const raw = normalizePattern(r.feet_pattern).replace(/\|/g, '');
         const pattern = [...raw].map(ch => ch === 'L' ? '–' : '⏑');
         const cmp = comparePattern(pattern, template);
-        const words = (r.words || []).map(w => String(w.word_text || '').trim()).filter(Boolean);
+        const words = dedupeAdjacent((r.words || []).map(w => String(w.word_text || '').trim()).filter(Boolean));
         const ci = words.length < 4 ? -1 : Math.floor(words.length / 2);
         const caesuraText = words.map((w, i) => i === ci ? `${w} ‖` : w).join(' ');
         return {
@@ -879,6 +916,7 @@
   el.btnScansionApplyFilters?.addEventListener('click', applySelectionFilters);
   [el.scansionBookFilter, el.scansionFootFilter, el.scansionHemiFilter, el.scansionQuantityFilter].forEach(x => x?.addEventListener('change', applySelectionFilters));
   el.scansionWordQuery?.addEventListener('input', applySelectionFilters);
+  [el.scansionWordMatchMode, el.scansionWordColumn, el.scansionRegexInsensitive, el.scansionRegexUnicode].forEach(x => x?.addEventListener('change', applySelectionFilters));
   el.btnProsodyRerender?.addEventListener('click', () => { renderAdvancedProsodyVisuals(state.rows); renderLineScansionBrowser(); });
   el.btnRenderLineScansion?.addEventListener('click', renderLineScansionBrowser);
   el.scansionLineScope?.addEventListener('change', renderLineScansionBrowser);

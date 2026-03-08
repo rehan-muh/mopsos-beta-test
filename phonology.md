@@ -73,4 +73,8 @@ section: phonology
     <div class="viz-wrap"><h3>Onset/coda complexity</h3><div id="phonComplexityBars"></div></div>
     <div class="viz-wrap"><h3>Sonority proxy profile</h3><div id="phonSonorityBars"></div></div>
   </div>
+  <div class="grid-2">
+    <div class="viz-wrap"><h3>Initial-sound profile (oral style)</h3><div id="phonInitialBars"></div></div>
+    <div class="viz-wrap"><h3>Adjacent alliteration windows</h3><div id="phonAlliterationBars"></div></div>
+  </div>
 </div>

@@ -27,11 +27,19 @@
     phonBalanceBars: document.getElementById('phonBalanceBars'),
     phonSylLenBars: document.getElementById('phonSylLenBars'),
     phonComplexityBars: document.getElementById('phonComplexityBars'),
-    phonSonorityBars: document.getElementById('phonSonorityBars')
+    phonSonorityBars: document.getElementById('phonSonorityBars'),
+    phonInitialBars: document.getElementById('phonInitialBars'),
+    phonAlliterationBars: document.getElementById('phonAlliterationBars')
   };
 
   const state = { rows: [], cols: [], lastRun: null };
   const esc = (x) => String(x ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  function setLoadingStatus(target, text='Loading...') {
+    if (!target) return;
+    target.classList.add('loading-note');
+    target.innerHTML = `<span>${esc(text)}</span><span class="loading-bar" aria-hidden="true"></span><strong>Please wait</strong>`;
+  }
 
   function normalizeGreekToken(t) {
     return String(t || '')
@@ -217,11 +225,13 @@
     renderFlexibleBars(el.phonSylLenBars, sylLen, 12);
     renderFlexibleBars(el.phonComplexityBars, complexity, 8);
     renderFlexibleBars(el.phonSonorityBars, son, 16);
+    renderFlexibleBars(el.phonInitialBars, new Map(last.initialEntries), 16);
+    renderFlexibleBars(el.phonAlliterationBars, new Map(last.alliterationEntries), 16);
   }
 
 
   function parseCsv(text, name='uploaded.csv') {
-    el.phonLoadStatus.textContent = `Loading ${name}...`;
+    setLoadingStatus(el.phonLoadStatus, `Loading ${name}...`);
     Papa.parse(text, { header:true, skipEmptyLines:true, complete: (res) => {
       state.rows = res.data || [];
       state.cols = res.meta?.fields || (state.rows[0] ? Object.keys(state.rows[0]) : []);
@@ -233,6 +243,7 @@
       if (g) el.phonTokenCol.value = g;
       el.phonTokenCol.disabled = !state.cols.length;
       el.btnRunPhon.disabled = !state.rows.length;
+      el.phonLoadStatus.classList.remove('loading-note');
       el.phonLoadStatus.textContent = `Loaded ${name} (${state.rows.length} rows).`;
     }});
   }
@@ -255,6 +266,8 @@
     if (!col) return;
     const phonemes = new Map(), shapes = new Map(), onsets = new Map(), codas = new Map(), diphthongs = new Map(), quantity = new Map();
     const report=[];
+    const initialSounds = new Map();
+    const alliterationWindows = new Map();
     let totalSyl=0, vowels=0, consonants=0, totalOnsetLen=0, totalCodaLen=0, onsetCt=0, codaCt=0, maxOnset=0, maxCoda=0;
     const sylLen = new Map();
     const son = new Map();
@@ -265,6 +278,8 @@
       if (!tok) continue;
       for (const ch of [...tok]) { freqMapAdd(phonemes, ch); if (VOWELS.test(ch)) vowels += 1; else if (CONSONANTS.test(ch)) consonants += 1; }
       const syls = syllabify(tok);
+      const initial = [...tok].find(ch => CONSONANTS.test(ch) || VOWELS.test(ch)) || '';
+      freqMapAdd(initialSounds, initial || '∅');
       totalSyl += syls.length;
       const shapeList=[];
       for (const s of syls) {
@@ -280,6 +295,12 @@
         if (codaCluster && isLikelyCodaCluster(codaCluster)) { freqMapAdd(codas, codaCluster); totalCodaLen += [...codaCluster].length; codaCt += 1; maxCoda = Math.max(maxCoda, [...codaCluster].length); freqMapAdd(son, sonorityBucketLabel(sonorityScore(codaCluster), 'coda')); }
       }
       report.push({ token: raw, cleaned: tok, syllables: syls.join(' · '), shapes: shapeList.join(' ') });
+      if (report.length > 1) {
+        const prev = report[report.length - 2].cleaned || '';
+        const prevInit = [...prev].find(ch => CONSONANTS.test(ch) || VOWELS.test(ch)) || '∅';
+        const curInit = initial || '∅';
+        freqMapAdd(alliterationWindows, `${prevInit}→${curInit}`);
+      }
     }
 
     el.phonSummary.innerHTML = `<div class="analysis-grid">
@@ -302,13 +323,15 @@
       avgOnset: onsetCt ? (totalOnsetLen/onsetCt) : 0,
       avgCoda: codaCt ? (totalCodaLen/codaCt) : 0,
       maxOnset, maxCoda,
-      sonorityEntries: [...son.entries()].sort((a,b)=>b[1]-a[1])
+      sonorityEntries: [...son.entries()].sort((a,b)=>b[1]-a[1]),
+      initialEntries: [...initialSounds.entries()].sort((a,b)=>b[1]-a[1]),
+      alliterationEntries: [...alliterationWindows.entries()].sort((a,b)=>b[1]-a[1])
     };
     renderAdvancedPanels(state.lastRun);
 
-    let html='<table class="mini-table"><thead><tr><th>Token</th><th>Normalized</th><th>Syllables</th><th>Shapes</th></tr></thead><tbody>';
+    let html='<div class="collapsible-table"><details><summary>Token-level rows (' + report.length + ') — click to expand/collapse</summary><div class="table-wrap"><table class="mini-table"><thead><tr><th>Token</th><th>Normalized</th><th>Syllables</th><th>Shapes</th></tr></thead><tbody>';
     for (const row of report.slice(0,300)) html += `<tr><td>${esc(row.token)}</td><td>${esc(row.cleaned)}</td><td>${esc(row.syllables)}</td><td>${esc(row.shapes)}</td></tr>`;
-    html += '</tbody></table>';
+    html += '</tbody></table></div></details></div>';
     el.phonTable.innerHTML = html;
 
     setupZoom();
@@ -360,11 +383,13 @@
   async function loadBundled(autoRun = false) {
     const path = BUNDLED[el.phonBundledDataset.value];
     if (!path) return;
+    setLoadingStatus(el.phonLoadStatus, `Loading bundled CSV (${path})...`);
     try {
       const loaded = await fetchBundledCsv(path);
       parseCsv(loaded.text, loaded.url);
       if (autoRun) setTimeout(() => { if (!el.btnRunPhon.disabled) run(); }, 0);
     } catch (err) {
+      el.phonLoadStatus.classList.remove('loading-note');
       el.phonLoadStatus.textContent = `Could not load bundled dataset (${String(err)})`;
     }
   }

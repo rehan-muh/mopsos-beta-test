@@ -4,6 +4,7 @@
     syntaxSentenceSelect: document.getElementById('syntaxSentenceSelect'),
     syntaxRelFilter: document.getElementById('syntaxRelFilter'),
     syntaxPosFilter: document.getElementById('syntaxPosFilter'),
+    syntaxUseDistance: document.getElementById('syntaxUseDistance'),
     btnBuildSyntax: document.getElementById('btnBuildSyntax'),
     btnSyntaxSample: document.getElementById('btnSyntaxSample'),
     btnSyntaxExport: document.getElementById('btnSyntaxExport'),
@@ -12,7 +13,8 @@
     syntaxPhrase: document.getElementById('syntaxPhrase'),
     syntaxRelationBars: document.getElementById('syntaxRelationBars'),
     syntaxHits: document.getElementById('syntaxHits'),
-    syntaxTable: document.getElementById('syntaxTable')
+    syntaxTable: document.getElementById('syntaxTable'),
+    syntaxDistanceProfile: document.getElementById('syntaxDistanceProfile')
   };
 
   const state = { sentences: [], reportRows: [] };
@@ -22,10 +24,34 @@
 
   function parseInput(text) {
     const blocks = String(text || '').trim().split(/\n\s*\n/).filter(Boolean);
-    return blocks.map((b, bi) => b.split(/\r?\n/).map(line => {
-      const p = line.trim().split('\t');
-      return { sid: bi + 1, id: +p[0], form: p[1], lemma: p[2], pos: p[3], head: +p[4], deprel: p[5] };
-    }).filter(r => Number.isFinite(r.id))).filter(x => x.length);
+    return blocks.map((b, bi) => {
+      const rows = b.split(/\r?\n/).map(line => {
+        const p = line.trim().split('\t');
+        const totalDistance = Number.parseInt(p[6], 10);
+        return {
+          sid: bi + 1,
+          id: Number.parseInt(p[0], 10),
+          form: p[1],
+          lemma: p[2],
+          pos: p[3],
+          head: Number.parseInt(p[4], 10),
+          deprel: p[5],
+          total_distance: Number.isFinite(totalDistance) ? totalDistance : null
+        };
+      }).filter(r => Number.isFinite(r.id));
+
+      if (el.syntaxUseDistance?.checked) {
+        const byId = new Map(rows.map(r => [r.id, r]));
+        for (const r of rows) {
+          if (Number.isFinite(r.total_distance) && r.total_distance !== 0) {
+            const inferredHead = r.id + r.total_distance;
+            if (byId.has(inferredHead)) r.head = inferredHead;
+          }
+          if (!Number.isFinite(r.head)) r.head = 0;
+        }
+      }
+      return rows;
+    }).filter(x => x.length);
   }
 
   function populateSentenceSelect(sentences) {
@@ -124,6 +150,30 @@
     el.syntaxHits.innerHTML = html;
   }
 
+  function renderDistanceProfile(sentences) {
+    if (!el.syntaxDistanceProfile) return;
+    const all = sentences.flat();
+    const bucketCount = new Map();
+    const categoryCount = new Map();
+    for (const r of all) {
+      const dist = Number.isFinite(r.total_distance) ? r.total_distance : (Number.isFinite(r.head) ? r.head - r.id : 0);
+      const dir = dist < 0 ? 'left dependency' : (dist > 0 ? 'right dependency' : 'root/self');
+      const bucket = `${dir} (${dist})`;
+      bucketCount.set(bucket, (bucketCount.get(bucket) || 0) + 1);
+      const cat = `${r.pos || 'UNK'} + ${r.deprel || 'dep'}`;
+      const key = `${bucket}||${cat}`;
+      categoryCount.set(key, (categoryCount.get(key) || 0) + 1);
+    }
+
+    let html = '<table class="mini-table"><thead><tr><th>Distance bucket</th><th>Count</th><th>Top grammatical categories</th></tr></thead><tbody>';
+    for (const [bucket, count] of [...bucketCount.entries()].sort((a,b)=>b[1]-a[1])) {
+      const cats = [...categoryCount.entries()].filter(([k])=>k.startsWith(`${bucket}||`)).map(([k,v])=>[k.split('||')[1], v]).sort((a,b)=>b[1]-a[1]).slice(0,4);
+      html += `<tr><td>${esc(bucket)}</td><td>${count}</td><td>${cats.map(([k,v])=>`${esc(k)} (${v})`).join(', ') || '—'}</td></tr>`;
+    }
+    html += '</tbody></table>';
+    el.syntaxDistanceProfile.innerHTML = html;
+  }
+
   function renderTable(rows) {
     let html = '<table class="mini-table"><thead><tr><th>ID</th><th>Form</th><th>Lemma</th><th>POS</th><th>Head</th><th>Deprel</th></tr></thead><tbody>';
     for (const r of rows) html += `<tr><td>${r.id}</td><td>${esc(r.form)}</td><td>${esc(r.lemma)}</td><td>${esc(r.pos)}</td><td>${r.head}</td><td>${esc(r.deprel)}</td></tr>`;
@@ -180,6 +230,7 @@
     renderPhrase(selected);
     renderRelationBars(state.sentences);
     renderHits(selected);
+    renderDistanceProfile(state.sentences);
     renderTable(selected);
 
     state.reportRows = state.sentences.flatMap((s, idx) => s.map(r => ({ sentence: idx + 1, ...r })));
@@ -192,5 +243,6 @@
   el.syntaxSentenceSelect.addEventListener('change', run);
   el.syntaxRelFilter.addEventListener('input', run);
   el.syntaxPosFilter.addEventListener('input', run);
+  el.syntaxUseDistance?.addEventListener('change', run);
   run();
 })();

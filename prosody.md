@@ -66,8 +66,28 @@ section: prosody
       <select id="scansionQuantityFilter"><option value="all">All</option><option value="long">Long</option><option value="short">Short</option></select>
     </div>
     <div class="field">
-      <label for="scansionWordQuery"><strong>Word contains</strong></label>
-      <input id="scansionWordQuery" type="text" placeholder="e.g. μῆνιν" />
+      <label for="scansionWordMatchMode"><strong>Word matching mode</strong></label>
+      <select id="scansionWordMatchMode">
+        <option value="contains" selected>Contains</option>
+        <option value="startsWith">Starts with</option>
+        <option value="endsWith">Ends with</option>
+        <option value="equals">Exact match</option>
+        <option value="regex">Regex</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="scansionWordColumn"><strong>Search column</strong></label>
+      <select id="scansionWordColumn"><option value="word_text" selected>Word / form</option><option value="lemma">Lemma</option><option value="form">Form</option></select>
+    </div>
+  </div>
+  <div class="grid-3">
+    <div class="field">
+      <label for="scansionWordQuery"><strong>Word query</strong></label>
+      <input id="scansionWordQuery" type="text" placeholder="e.g. μῆνιν or ^μῆ.* (regex)" />
+    </div>
+    <div class="field inline-group">
+      <label class="inline"><input id="scansionRegexInsensitive" type="checkbox" checked /> Regex case-insensitive</label>
+      <label class="inline"><input id="scansionRegexUnicode" type="checkbox" checked /> Regex unicode mode</label>
     </div>
     <div class="field startup-actions">
       <button id="btnScansionApplyFilters" class="btn btn-primary">Apply selection filters</button>

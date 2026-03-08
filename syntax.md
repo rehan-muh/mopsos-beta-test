@@ -28,6 +28,9 @@ section: syntax
 5	Ἀχαιοῖς	Ἀχαιός	NOUN	3	iobj</textarea>
   </div>
   <div class="grid-3">
+    <div class="field inline-group">
+      <label class="inline"><input id="syntaxUseDistance" type="checkbox" checked /> Infer dependencies from <code>total_distance</code> when available</label>
+    </div>
     <div class="field"><label for="syntaxSentenceSelect"><strong>Sentence</strong></label><select id="syntaxSentenceSelect"></select></div>
     <div class="field"><label for="syntaxRelFilter"><strong>Filter relation</strong></label><input id="syntaxRelFilter" type="text" placeholder="e.g. obj, nsubj" /></div>
     <div class="field"><label for="syntaxPosFilter"><strong>Filter POS</strong></label><input id="syntaxPosFilter" type="text" placeholder="e.g. VERB" /></div>
@@ -62,8 +65,14 @@ section: syntax
       <div id="syntaxHits"></div>
     </div>
   </div>
-  <div class="viz-wrap">
-    <h3>Token table</h3>
-    <div id="syntaxTable"></div>
+  <div class="grid-2">
+    <div class="viz-wrap">
+      <h3>Dependency category profile</h3>
+      <div id="syntaxDistanceProfile"></div>
+    </div>
+    <div class="viz-wrap">
+      <h3>Token table</h3>
+      <div id="syntaxTable"></div>
+    </div>
   </div>
 </div>
