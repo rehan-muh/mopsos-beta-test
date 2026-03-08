@@ -189,7 +189,7 @@
     const syllables = words.flatMap(syllabifyWord);
 
     const pattern = [];
-    let correption = 0, resonantLengthening = 0;
+    let correption = 0, resonantLengthening = 0, naturallyLongBeforeVowel = 0;
     for (let i = 0; i < syllables.length; i++) {
       const s = syllables[i], n = syllables[i+1] || '';
       let q = quantityByNature(s);
@@ -200,13 +200,13 @@
         q = '–';
       }
       // epic correption heuristic: long by nature before vowel may scan short
-      if (q === '–' && /^[αεηιουωάέήίόύώϊΐΰϋ]/i.test(n)) { q = '⏑'; correption += 1; }
+      if (q === '–' && /^[αεηιουωάέήίόύώϊΐΰϋ]/i.test(n)) { naturallyLongBeforeVowel += 1; q = '⏑'; correption += 1; }
       pattern.push(q);
     }
 
     const ci = caesuraIndex(words);
     const caesuraText = words.map((w, i) => i === ci ? `${w} ‖` : w).join(' ');
-    return { line, words, syllables, pattern, caesuraAt: ci, caesuraText, elisions, correption, resonantLengthening };
+    return { line, words, syllables, pattern, caesuraAt: ci, caesuraText, elisions, correption, naturallyLongBeforeVowel, resonantLengthening };
   }
 
   function parseTemplate() {
@@ -243,7 +243,7 @@
       html += `<tr><td>${i+1}</td><td>${esc(r.line)}</td><td>${esc(r.pattern.join(' '))}</td><td>${esc(r.caesuraText)}</td><td>${r.matchScore}%</td></tr>`;
     }
     html += '</tbody></table>';
-    el.prosodyAlignment.innerHTML = html;
+    el.prosodyAlignment.innerHTML = wrapCollapsible('Verse alignment rows', results.length, `<div class="table-wrap">${html}</div>`, true);
   }
 
   function renderBars(results) {
@@ -257,13 +257,13 @@
   }
 
   function renderDiagnostics(results) {
-    let html = '<table class="mini-table"><thead><tr><th>Verse</th><th>Mismatch</th><th>Elision</th><th>Epic correption</th><th>Resonant length.</th></tr></thead><tbody>';
+    let html = '<table class="mini-table"><thead><tr><th>Verse</th><th>Mismatch</th><th>Elision</th><th>Epic correption</th><th>Natural long before vowel</th><th>Resonant length.</th></tr></thead><tbody>';
     for (let i = 0; i < results.length; i++) {
       const r = results[i];
-      html += `<tr><td>${i+1}</td><td>${esc(r.mismatches.slice(0,8).join(', ') || 'none')}</td><td>${r.elisions}</td><td>${r.correption}</td><td>${r.resonantLengthening}</td></tr>`;
+      html += `<tr><td>${i+1}</td><td>${esc(r.mismatches.slice(0,8).join(', ') || 'none')}</td><td>${r.elisions}</td><td>${r.correption}</td><td>${r.naturallyLongBeforeVowel || 0}</td><td>${r.resonantLengthening}</td></tr>`;
     }
     html += '</tbody></table>';
-    el.prosodyDiagnostics.innerHTML = html;
+    el.prosodyDiagnostics.innerHTML = wrapCollapsible('Diagnostics rows', results.length, `<div class="table-wrap">${html}</div>`, false);
   }
 
   function exportCsv() {
@@ -443,6 +443,40 @@
     return hay.includes(query);
   }
 
+  function wrapCollapsible(title, count, innerHtml, open = false) {
+    const state = open ? ' open' : '';
+    return `<div class="collapsible-table"><details${state}><summary>${esc(title)} (${count}) — click to expand/collapse</summary>${innerHtml}</details></div>`;
+  }
+
+  function detectProsodicPhenomena(words) {
+    let elisions = 0;
+    let epicCorreption = 0;
+    let resonantLengthening = 0;
+    let naturallyLongBeforeVowel = 0;
+
+    for (let i = 0; i < words.length - 1; i++) {
+      const current = words[i];
+      const next = words[i + 1];
+      const w = normalizeGreekForMatch(current.word_text || current.form || '');
+      const n = normalizeGreekForMatch(next.word_text || next.form || '');
+      const endsVowel = /[αεηιουω]$/.test(w);
+      const startsVowel = /^[αεηιουω]/.test(n);
+      const startsResonant = /^[λμρν]/.test(n);
+      const lastQ = String(current.all_quantities || '').slice(-1).toUpperCase();
+
+      if ((/[’'᾽]/.test(String(current.word_text || '')) || (/[^αεηιουω]$/.test(w) && startsVowel)) && startsVowel) elisions += 1;
+
+      if (startsVowel && /(?:αι|ει|οι|υι|ου|αυ|ευ|ηυ|ωυ|η|ω)$/.test(w)) {
+        naturallyLongBeforeVowel += 1;
+        if (lastQ === 'S') epicCorreption += 1;
+      }
+
+      if (startsResonant && /[αεο]$/.test(w) && lastQ === 'L') resonantLengthening += 1;
+    }
+
+    return { elisions, epicCorreption, resonantLengthening, naturallyLongBeforeVowel };
+  }
+
   function setSelectOptions(select, values, placeholder = 'All') {
     if (!select) return;
     const current = select.value;
@@ -499,7 +533,7 @@
         word_idx: String(w.word_idx || '').trim(),
         word_text: String(w.word_text || '').trim(),
         form: String(w.form || w.word_text || '').trim(),
-        lemma: String(w.lemma || '').trim(),
+        lemma: String(w.lemma || w.word_text || '').trim(),
         all_quantities: String(w.all_quantities || '').trim(),
         start_foot: String(w.start_foot || '').trim(),
         end_foot: String(w.end_foot || '').trim(),
@@ -548,10 +582,10 @@
     }
 
     const sample = rows.slice(0, 300);
-    let html = '<div class="collapsible-table"><details><summary>Selection rows (' + rows.length + ') — click to expand/collapse</summary><div class="table-wrap"><table class="mini-table"><thead><tr><th>Work</th><th>Book</th><th>Line</th><th>Word #</th><th>Word</th><th>Feet</th><th>Hemi</th><th>Quantities</th><th>Foot-end</th></tr></thead><tbody>';
-    for (const r of sample) html += `<tr><td>${esc(r.work)}</td><td>${esc(r.book)}</td><td>${esc(r.line_num || r.line_id)}</td><td>${esc(r.word_idx)}</td><td>${esc(r.word_text)}</td><td>${esc(r.feet || `${r.start_foot}-${r.end_foot}`)}</td><td>${esc(r.hemis || '-')}</td><td>${esc(r.all_quantities)}</td><td>${r.contains_footend ? 'yes' : 'no'}</td></tr>`;
-    html += '</tbody></table></div></details></div>';
-    el.scansionSelectionTable.innerHTML = html;
+    let html = '<table class="mini-table"><thead><tr><th>Work</th><th>Book</th><th>Line</th><th>Word #</th><th>Word</th><th>Lemma</th><th>Feet</th><th>Hemi</th><th>Quantities</th><th>Foot-end</th></tr></thead><tbody>';
+    for (const r of sample) html += `<tr><td>${esc(r.work)}</td><td>${esc(r.book)}</td><td>${esc(r.line_num || r.line_id)}</td><td>${esc(r.word_idx)}</td><td>${esc(r.word_text)}</td><td>${esc(r.lemma || '')}</td><td>${esc(r.feet || `${r.start_foot}-${r.end_foot}`)}</td><td>${esc(r.hemis || '-')}</td><td>${esc(r.all_quantities)}</td><td>${r.contains_footend ? 'yes' : 'no'}</td></tr>`;
+    html += '</tbody></table>';
+    el.scansionSelectionTable.innerHTML = wrapCollapsible('Selection rows', rows.length, `<div class="table-wrap">${html}</div>`, false);
     setupZoom();
   }
 
@@ -717,12 +751,12 @@
     if (lineScope !== 'all') rows = rows.filter(r => `${r.work}:${r.book}` === lineScope);
     if (q) rows = rows.filter(r => normalizeGreekForMatch(r.text).includes(q) || normalizeGreekForMatch(r.word_scansion).includes(q));
 
-    let html = '<div class="collapsible-table"><details><summary>Per-line rows (' + rows.length + ') — click to expand/collapse</summary><div class="table-wrap"><table class="mini-table"><thead><tr><th>Work</th><th>Book</th><th>Line</th><th>Text</th><th>Line scansion</th><th>Word-level scansion</th></tr></thead><tbody>';
+    let html = '<table class="mini-table"><thead><tr><th>Work</th><th>Book</th><th>Line</th><th>Text</th><th>Line scansion</th><th>Word-level scansion</th></tr></thead><tbody>';
     for (const r of rows.slice(0, 250)) {
       html += `<tr><td>${esc(r.work)}</td><td>${esc(r.book)}</td><td>${esc(r.line_num || r.line_id)}</td><td>${esc(r.text)}</td><td>${esc(r.feet_pattern)}</td><td>${esc(r.word_scansion)}</td></tr>`;
     }
-    html += '</tbody></table></div></details></div>';
-    el.prosodyLineScansionTable.innerHTML = html;
+    html += '</tbody></table>';
+    el.prosodyLineScansionTable.innerHTML = wrapCollapsible('Per-line rows', rows.length, `<div class="table-wrap">${html}</div>`, false);
     setupZoom();
   }
 
@@ -781,14 +815,14 @@
       </div>`;
     }
 
-    let html = '<div class="table-wrap"><table class="mini-table"><thead><tr><th>Cluster</th><th>Patterns</th><th>Total lines</th></tr></thead><tbody>';
+    let html = '<table class="mini-table"><thead><tr><th>Cluster</th><th>Patterns</th><th>Total lines</th></tr></thead><tbody>';
     for (const [c, arr] of [...clusters.entries()].sort((a,b)=>b[1].length-a[1].length)) {
       const total = arr.reduce((t,x)=>t+x.count,0);
       const pats = arr.map(x => `${x.pattern} (${x.count})`).join(', ');
       html += `<tr><td>${c}</td><td>${esc(pats)}</td><td>${total}</td></tr>`;
     }
-    html += '</tbody></table></div>';
-    if (el.patternClusterTable) el.patternClusterTable.innerHTML = html;
+    html += '</tbody></table>';
+    if (el.patternClusterTable) el.patternClusterTable.innerHTML = wrapCollapsible('Pattern clusters', clusters.size, `<div class="table-wrap">${html}</div>`, false);
     setupZoom();
   }
 
@@ -825,10 +859,10 @@
       </div>`;
     }
 
-    let html = '<div class="table-wrap"><table class="mini-table"><thead><tr><th>Word</th><th>Count</th><th>Feet</th><th>Books hit</th></tr></thead><tbody>';
+    let html = '<table class="mini-table"><thead><tr><th>Word</th><th>Count</th><th>Feet</th><th>Books hit</th></tr></thead><tbody>';
     for (const r of top) html += `<tr><td>${esc(r.display)}</td><td>${r.count}</td><td>${esc([...r.feet].join(', '))}</td><td>${r.books.size}</td></tr>`;
-    html += '</tbody></table></div>';
-    if (el.slotRepetitionTable) el.slotRepetitionTable.innerHTML = html;
+    html += '</tbody></table>';
+    if (el.slotRepetitionTable) el.slotRepetitionTable.innerHTML = wrapCollapsible('Slot repetition rows', top.length, `<div class="table-wrap">${html}</div>`, false);
     setupZoom();
   }
 
@@ -875,6 +909,7 @@
         const words = dedupeAdjacent((r.words || []).map(w => String(w.word_text || '').trim()).filter(Boolean));
         const ci = words.length < 4 ? -1 : Math.floor(words.length / 2);
         const caesuraText = words.map((w, i) => i === ci ? `${w} ‖` : w).join(' ');
+        const phenomena = detectProsodicPhenomena(r.words || []);
         return {
           verse: idx + 1,
           line: r.text,
@@ -887,9 +922,10 @@
           mismatches: cmp.mismatches,
           caesuraAt: ci,
           caesuraText,
-          elisions: 0,
-          correption: 0,
-          resonantLengthening: 0
+          elisions: phenomena.elisions,
+          correption: phenomena.epicCorreption,
+          naturallyLongBeforeVowel: phenomena.naturallyLongBeforeVowel,
+          resonantLengthening: phenomena.resonantLengthening
         };
       });
     }

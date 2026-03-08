@@ -1,7 +1,13 @@
 (() => {
+  const BUNDLED = { "default.csv": "assets/data/default.csv", "default2.csv": "assets/data/default2.csv" };
+
   const el = {
+    syntaxCsvFile: document.getElementById('syntaxCsvFile'),
+    syntaxBundledDataset: document.getElementById('syntaxBundledDataset'),
+    btnSyntaxLoadBundled: document.getElementById('btnSyntaxLoadBundled'),
+    syntaxSectionSelect: document.getElementById('syntaxSectionSelect'),
+    syntaxLoadStatus: document.getElementById('syntaxLoadStatus'),
     syntaxInput: document.getElementById('syntaxInput'),
-    syntaxSentenceSelect: document.getElementById('syntaxSentenceSelect'),
     syntaxRelFilter: document.getElementById('syntaxRelFilter'),
     syntaxPosFilter: document.getElementById('syntaxPosFilter'),
     syntaxUseDistance: document.getElementById('syntaxUseDistance'),
@@ -17,67 +23,106 @@
     syntaxDistanceProfile: document.getElementById('syntaxDistanceProfile')
   };
 
-  const state = { sentences: [], reportRows: [] };
-  const sample = el.syntaxInput.value;
+  const state = { sentences: [], reportRows: [], csvRows: [], activeSource: 'tsv' };
+  const sample = el.syntaxInput?.value || '';
 
-  function esc(x) { return String(x ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function esc(x) { return String(x ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
-  function parseInput(text) {
+  function setLoadingStatus(target, text = 'Loading...') {
+    if (!target) return;
+    target.classList.add('loading-note');
+    target.innerHTML = `<span>${esc(text)}</span><span class="loading-bar" aria-hidden="true"></span><strong>Please wait</strong>`;
+  }
+
+  function parseIntSafe(v, d = null) {
+    const n = Number.parseInt(String(v ?? '').trim(), 10);
+    return Number.isFinite(n) ? n : d;
+  }
+
+  function normalizeTokenRow(row, sid = 1) {
+    const id = parseIntSafe(row.id ?? row.token_id ?? row.word_id);
+    if (!Number.isFinite(id)) return null;
+    const totalDistance = parseIntSafe(row.total_distance, null);
+    const head = parseIntSafe(row.head, null);
+    return {
+      sid,
+      id,
+      form: String(row.form ?? row.word ?? row.token ?? '').trim(),
+      lemma: String(row.lemma ?? '').trim(),
+      pos: String(row.pos ?? '').trim(),
+      head,
+      deprel: String(row.deprel ?? row.dep_rel ?? row.relation ?? '').trim(),
+      total_distance: totalDistance
+    };
+  }
+
+  function applyDistanceInference(rows) {
+    const byId = new Map(rows.map(r => [r.id, r]));
+    for (const r of rows) {
+      if (el.syntaxUseDistance?.checked && Number.isFinite(r.total_distance) && r.total_distance !== 0) {
+        const inferredHead = r.id + r.total_distance;
+        if (byId.has(inferredHead)) r.head = inferredHead;
+      }
+      if (!Number.isFinite(r.head)) r.head = 0;
+    }
+  }
+
+  function parseInputTsv(text) {
     const blocks = String(text || '').trim().split(/\n\s*\n/).filter(Boolean);
     return blocks.map((b, bi) => {
       const rows = b.split(/\r?\n/).map(line => {
         const p = line.trim().split('\t');
-        const totalDistance = Number.parseInt(p[6], 10);
-        return {
-          sid: bi + 1,
-          id: Number.parseInt(p[0], 10),
-          form: p[1],
-          lemma: p[2],
-          pos: p[3],
-          head: Number.parseInt(p[4], 10),
-          deprel: p[5],
-          total_distance: Number.isFinite(totalDistance) ? totalDistance : null
-        };
-      }).filter(r => Number.isFinite(r.id));
-
-      if (el.syntaxUseDistance?.checked) {
-        const byId = new Map(rows.map(r => [r.id, r]));
-        for (const r of rows) {
-          if (Number.isFinite(r.total_distance) && r.total_distance !== 0) {
-            const inferredHead = r.id + r.total_distance;
-            if (byId.has(inferredHead)) r.head = inferredHead;
-          }
-          if (!Number.isFinite(r.head)) r.head = 0;
-        }
-      }
+        return normalizeTokenRow({
+          id: p[0], form: p[1], lemma: p[2], pos: p[3], head: p[4], deprel: p[5], total_distance: p[6]
+        }, bi + 1);
+      }).filter(Boolean);
+      applyDistanceInference(rows);
       return rows;
     }).filter(x => x.length);
   }
 
-  function populateSentenceSelect(sentences) {
-    const cur = el.syntaxSentenceSelect.value;
-    el.syntaxSentenceSelect.innerHTML = '';
-    sentences.forEach((s, i) => {
+  function groupCsvBySection(rows) {
+    const grouped = new Map();
+    for (const raw of rows) {
+      const section = String(raw.section_id ?? raw.sentence_id ?? raw.section ?? raw.sid ?? 'section_1').trim() || 'section_1';
+      if (!grouped.has(section)) grouped.set(section, []);
+      grouped.get(section).push(raw);
+    }
+
+    const out = [];
+    for (const [section, list] of grouped.entries()) {
+      const cleaned = list.map(r => normalizeTokenRow(r, section)).filter(Boolean).sort((a, b) => a.id - b.id);
+      applyDistanceInference(cleaned);
+      if (cleaned.length) out.push({ section, rows: cleaned });
+    }
+    return out;
+  }
+
+  function populateSectionSelect(groups) {
+    const cur = el.syntaxSectionSelect?.value;
+    if (!el.syntaxSectionSelect) return;
+    el.syntaxSectionSelect.innerHTML = '';
+    for (const g of groups) {
       const o = document.createElement('option');
-      o.value = String(i);
-      o.textContent = `Sentence ${i + 1} (${s.length} tokens)`;
-      el.syntaxSentenceSelect.appendChild(o);
-    });
-    if (cur && sentences[cur]) el.syntaxSentenceSelect.value = cur;
+      o.value = g.section;
+      o.textContent = `${g.section} (${g.rows.length} tokens)`;
+      el.syntaxSectionSelect.appendChild(o);
+    }
+    if (cur && [...el.syntaxSectionSelect.options].some(o => o.value === cur)) el.syntaxSectionSelect.value = cur;
   }
 
   function filteredRows(rows) {
-    const rel = el.syntaxRelFilter.value.trim().toLowerCase();
-    const pos = el.syntaxPosFilter.value.trim().toLowerCase();
+    const rel = (el.syntaxRelFilter?.value || '').trim().toLowerCase();
+    const pos = (el.syntaxPosFilter?.value || '').trim().toLowerCase();
     return rows.filter(r => (!rel || String(r.deprel).toLowerCase().includes(rel)) && (!pos || String(r.pos).toLowerCase().includes(pos)));
   }
 
   function renderSummary(sentences) {
     const all = sentences.flat();
     const roots = all.filter(x => x.head === 0).length;
-    const depTypes = new Set(all.map(x => x.deprel)).size;
+    const depTypes = new Set(all.map(x => x.deprel).filter(Boolean)).size;
     el.syntaxSummary.innerHTML = `<div class="analysis-grid">
-      <div class="analysis-card"><span class="label">Sentences</span><div class="value">${sentences.length}</div></div>
+      <div class="analysis-card"><span class="label">Sentences/sections</span><div class="value">${sentences.length}</div></div>
       <div class="analysis-card"><span class="label">Tokens</span><div class="value">${all.length}</div></div>
       <div class="analysis-card"><span class="label">Roots</span><div class="value">${roots}</div></div>
       <div class="analysis-card"><span class="label">Relation types</span><div class="value">${depTypes}</div></div>
@@ -94,9 +139,9 @@
       if (!hx || r.head === 0) {
         html += `<line x1="${tx}" y1="70" x2="${tx}" y2="${y-30}" stroke="#64748b" stroke-dasharray="4 4"/>`;
       } else {
-        const mid = (tx + hx) / 2, h = Math.min(280, 50 + Math.abs(tx-hx) * .34);
+        const mid = (tx + hx) / 2, h = Math.min(280, 50 + Math.abs(tx - hx) * .34);
         html += `<path d="M ${hx} ${y-30} Q ${mid} ${y-h} ${tx} ${y-30}" fill="none" stroke="#4f46e5" stroke-width="2"/>`;
-        html += `<text x="${mid-20}" y="${y-h-6}" font-size="11" fill="#1e293b">${esc(r.deprel)}</text>`;
+        html += `<text x="${mid-20}" y="${y-h-6}" font-size="11" fill="#1e293b">${esc(r.deprel || '')}</text>`;
       }
     }
     for (const r of rows) {
@@ -120,12 +165,12 @@
       if (!kids.length) return `${pad}(${n.pos}:${n.form})`;
       return `${pad}(${n.pos}:${n.form}\n${kids.map(k => walk(k, d+1)).join('\n')}\n${pad})`;
     }
-    el.syntaxPhrase.textContent = `(S\n${walk(root)}\n)`;
+    el.syntaxPhrase.textContent = root ? `(S\n${walk(root)}\n)` : '(S)';
   }
 
   function renderRelationBars(sentences) {
     const freq = new Map();
-    for (const r of sentences.flat()) freq.set(r.deprel, (freq.get(r.deprel) || 0) + 1);
+    for (const r of sentences.flat()) freq.set(r.deprel || '—', (freq.get(r.deprel || '—') || 0) + 1);
     const entries = [...freq.entries()].sort((a,b)=>b[1]-a[1]).slice(0, 16);
     const max = Math.max(...entries.map(x=>x[1]),1);
     let html = '';
@@ -137,21 +182,17 @@
   }
 
   function renderHits(rows) {
-    const verbObjs = rows.filter(r => r.deprel === 'obj');
+    const verbObjs = rows.filter(r => String(r.deprel) === 'obj');
     const nsubj = rows.filter(r => String(r.deprel).includes('subj'));
+    const finite = rows.filter(r => /VERB|AUX|\bv\b/i.test(String(r.pos)));
     let html = `<table class="mini-table"><thead><tr><th>Construction</th><th>Count</th><th>Examples</th></tr></thead><tbody>`;
-    const items = [
-      ['Objects', verbObjs, verbObjs.map(r => r.form)],
-      ['Subjects', nsubj, nsubj.map(r => r.form)],
-      ['Finite verbs', rows.filter(r => /VERB|AUX/.test(r.pos)), rows.filter(r => /VERB|AUX/.test(r.pos)).map(r=>r.form)]
-    ];
-    for (const [name, arr, ex] of items) html += `<tr><td>${name}</td><td>${arr.length}</td><td>${esc(ex.slice(0,6).join(', '))}</td></tr>`;
-    html += `</tbody></table>`;
+    const items = [['Objects', verbObjs], ['Subjects', nsubj], ['Finite verbs', finite]];
+    for (const [name, arr] of items) html += `<tr><td>${name}</td><td>${arr.length}</td><td>${esc(arr.slice(0,6).map(r => r.form).join(', '))}</td></tr>`;
+    html += '</tbody></table>';
     el.syntaxHits.innerHTML = html;
   }
 
   function renderDistanceProfile(sentences) {
-    if (!el.syntaxDistanceProfile) return;
     const all = sentences.flat();
     const bucketCount = new Map();
     const categoryCount = new Map();
@@ -175,15 +216,15 @@
   }
 
   function renderTable(rows) {
-    let html = '<table class="mini-table"><thead><tr><th>ID</th><th>Form</th><th>Lemma</th><th>POS</th><th>Head</th><th>Deprel</th></tr></thead><tbody>';
-    for (const r of rows) html += `<tr><td>${r.id}</td><td>${esc(r.form)}</td><td>${esc(r.lemma)}</td><td>${esc(r.pos)}</td><td>${r.head}</td><td>${esc(r.deprel)}</td></tr>`;
+    let html = '<table class="mini-table"><thead><tr><th>ID</th><th>Form</th><th>Lemma</th><th>POS</th><th>Head</th><th>Deprel</th><th>total_distance</th></tr></thead><tbody>';
+    for (const r of rows) html += `<tr><td>${r.id}</td><td>${esc(r.form)}</td><td>${esc(r.lemma)}</td><td>${esc(r.pos)}</td><td>${r.head}</td><td>${esc(r.deprel)}</td><td>${Number.isFinite(r.total_distance) ? r.total_distance : ''}</td></tr>`;
     html += '</tbody></table>';
     el.syntaxTable.innerHTML = html;
   }
 
   function toCsv(rows) {
-    const cols = ['sentence','id','form','lemma','pos','head','deprel'];
-    return [cols.join(','), ...rows.map(r => [r.sentence,r.id,r.form,r.lemma,r.pos,r.head,r.deprel].map(v => `"${String(v??'').replace(/"/g,'""')}"`).join(','))].join('\n');
+    const cols = ['sentence','id','form','lemma','pos','head','deprel','total_distance'];
+    return [cols.join(','), ...rows.map(r => [r.sentence,r.id,r.form,r.lemma,r.pos,r.head,r.deprel,r.total_distance ?? ''].map(v => `"${String(v??'').replace(/"/g,'""')}"`).join(','))].join('\n');
   }
 
   function exportReport() {
@@ -204,6 +245,7 @@
       b.addEventListener('click', ()=>openZoom(c)); c.prepend(b);
     }
   }
+
   function openZoom(container) {
     let modal = document.getElementById('zoomModal');
     if (!modal) {
@@ -219,12 +261,31 @@
   }
 
   function run() {
-    state.sentences = parseInput(el.syntaxInput.value);
-    if (!state.sentences.length) return;
-    populateSentenceSelect(state.sentences);
-    const si = Math.min(+el.syntaxSentenceSelect.value || 0, state.sentences.length - 1);
-    const selected = filteredRows(state.sentences[si]);
+    if (state.activeSource === 'csv' && state.csvRows.length) {
+      const groups = groupCsvBySection(state.csvRows);
+      if (!groups.length) return;
+      populateSectionSelect(groups);
+      const section = el.syntaxSectionSelect?.value || groups[0].section;
+      const selectedGroup = groups.find(g => g.section === section) || groups[0];
+      const selected = filteredRows(selectedGroup.rows);
+      const allSentences = groups.map(g => g.rows);
 
+      renderSummary(allSentences);
+      renderDepTree(selected);
+      renderPhrase(selected);
+      renderRelationBars(allSentences);
+      renderHits(selected);
+      renderDistanceProfile(allSentences);
+      renderTable(selected);
+      state.sentences = allSentences;
+      state.reportRows = allSentences.flatMap((s, idx) => s.map(r => ({ sentence: idx + 1, ...r })));
+      setupZoom();
+      return;
+    }
+
+    state.sentences = parseInputTsv(el.syntaxInput?.value || '');
+    if (!state.sentences.length) return;
+    const selected = filteredRows(state.sentences[0]);
     renderSummary(state.sentences);
     renderDepTree(selected);
     renderPhrase(selected);
@@ -232,17 +293,83 @@
     renderHits(selected);
     renderDistanceProfile(state.sentences);
     renderTable(selected);
-
     state.reportRows = state.sentences.flatMap((s, idx) => s.map(r => ({ sentence: idx + 1, ...r })));
     setupZoom();
   }
 
-  el.btnBuildSyntax.addEventListener('click', run);
-  el.btnSyntaxSample.addEventListener('click', () => { el.syntaxInput.value = sample; run(); });
-  el.btnSyntaxExport.addEventListener('click', exportReport);
-  el.syntaxSentenceSelect.addEventListener('change', run);
-  el.syntaxRelFilter.addEventListener('input', run);
-  el.syntaxPosFilter.addEventListener('input', run);
+  function parseCsvText(text, label = 'uploaded.csv') {
+    setLoadingStatus(el.syntaxLoadStatus, `Loading ${label} ...`);
+    Papa.parse(text, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (res) => {
+        const rows = res.data || [];
+        const fields = res.meta?.fields || [];
+        const lfsPointer = fields.length === 1 && fields[0].startsWith('version https://git-lfs.github.com/spec/v1');
+        el.syntaxLoadStatus.classList.remove('loading-note');
+        if (lfsPointer) {
+          el.syntaxLoadStatus.textContent = `Loaded ${label}, but it is a Git LFS pointer file, not tabular CSV data.`;
+          state.csvRows = [];
+          return;
+        }
+        state.csvRows = rows;
+        state.activeSource = 'csv';
+        el.syntaxLoadStatus.textContent = `Loaded ${label} (${rows.length} rows).`;
+        run();
+      },
+      error: (err) => {
+        el.syntaxLoadStatus.classList.remove('loading-note');
+        el.syntaxLoadStatus.textContent = `Failed to parse CSV (${String(err)})`;
+      }
+    });
+  }
+
+  async function fetchBundledCsv(path) {
+    const variants = [path, new URL(path, document.baseURI).toString(), path.startsWith('/') ? path : `/${path}`];
+    let lastErr = null;
+    for (const candidate of [...new Set(variants)]) {
+      try {
+        const res = await fetch(candidate, { cache: 'no-store' });
+        if (res.ok) return { text: await res.text(), url: candidate };
+        lastErr = new Error(`HTTP ${res.status} @ ${candidate}`);
+      } catch (err) { lastErr = err; }
+    }
+    throw lastErr || new Error(`Could not load bundled csv at ${path}`);
+  }
+
+  async function loadBundled() {
+    const selected = el.syntaxBundledDataset?.value || 'default.csv';
+    const configured = BUNDLED[selected];
+    const paths = [...new Set([configured, ...Object.values(BUNDLED)].filter(Boolean))];
+    setLoadingStatus(el.syntaxLoadStatus, `Loading bundled syntax CSV (${selected}) ...`);
+    for (const path of paths) {
+      try {
+        const loaded = await fetchBundledCsv(path);
+        parseCsvText(loaded.text, loaded.url);
+        return;
+      } catch (_) {}
+    }
+    el.syntaxLoadStatus.classList.remove('loading-note');
+    el.syntaxLoadStatus.textContent = `Could not load any configured bundled syntax CSV.`;
+  }
+
+  el.btnBuildSyntax?.addEventListener('click', run);
+  el.btnSyntaxSample?.addEventListener('click', () => {
+    state.activeSource = 'tsv';
+    if (el.syntaxInput) el.syntaxInput.value = sample;
+    run();
+  });
+  el.btnSyntaxExport?.addEventListener('click', exportReport);
+  el.syntaxSectionSelect?.addEventListener('change', run);
+  el.syntaxRelFilter?.addEventListener('input', run);
+  el.syntaxPosFilter?.addEventListener('input', run);
   el.syntaxUseDistance?.addEventListener('change', run);
-  run();
+  el.syntaxCsvFile?.addEventListener('change', e => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    f.text().then(txt => parseCsvText(txt, f.name));
+  });
+  el.btnSyntaxLoadBundled?.addEventListener('click', loadBundled);
+
+  loadBundled().catch(() => run());
 })();

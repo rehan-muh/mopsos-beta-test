@@ -782,7 +782,15 @@
     for (const candidate of [...new Set(variants)]) {
       try {
         const res = await fetch(candidate, { cache: "no-store" });
-        if (res.ok) return { text: await res.text(), url: candidate };
+        if (res.ok) {
+          const text = await res.text();
+          const first = String(text).split(/\r?\n/)[0]?.trim();
+          if (first === "version https://git-lfs.github.com/spec/v1") {
+            lastErr = new Error(`Git LFS pointer file @ ${candidate}`);
+            continue;
+          }
+          return { text, url: candidate };
+        }
         lastErr = new Error(`HTTP ${res.status} @ ${candidate}`);
       } catch (err) {
         lastErr = err;

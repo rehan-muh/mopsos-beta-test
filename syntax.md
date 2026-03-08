@@ -7,43 +7,65 @@ section: syntax
 <section class="hero card">
   <p class="kicker">MOPSOS</p>
   <h1>Syntax Workbench</h1>
-  <p class="lead">Generate dependency trees, phrase structure snapshots, corpus-level syntax statistics, and searchable constructions from token-level annotation.</p>
+  <p class="lead">Build dependency views either from tab-separated token lines or directly from CSVs that include <code>section_id</code>, <code>id</code>, and <code>total_distance</code>.</p>
 </section>
 
 <div class="card">
-  <h2>1. Input sentence data</h2>
-  <p class="help">Use one token per line: <code>id[TAB]form[TAB]lemma[TAB]pos[TAB]head[TAB]deprel</code>. Separate sentences with a blank line.</p>
-  <div class="field">
-    <label for="syntaxInput"><strong>Token rows</strong></label>
-    <textarea id="syntaxInput" class="big-textarea">1	μῆνιν	μῆνις	NOUN	2	obj
-2	ἄειδε	ἀείδω	VERB	0	root
-3	θεὰ	θεά	NOUN	2	vocative
-4	Πηληϊάδεω	Πηληϊάδης	PROPN	5	nmod
-5	Ἀχιλῆος	Ἀχιλλεύς	PROPN	3	appos
-
-1	οὐλομένην	οὐλόμενος	ADJ	3	amod
-2	ἣ	ὅς	PRON	3	nsubj
-3	ἔθηκε	τίθημι	VERB	0	root
-4	ἄλγε᾽	ἄλγος	NOUN	3	obj
-5	Ἀχαιοῖς	Ἀχαιός	NOUN	3	iobj</textarea>
+  <h2>1. Load syntax source</h2>
+  <div class="grid-3">
+    <div class="field">
+      <label for="syntaxCsvFile"><strong>Upload CSV</strong></label>
+      <input id="syntaxCsvFile" type="file" accept=".csv,text/csv" />
+    </div>
+    <div class="field">
+      <label for="syntaxBundledDataset"><strong>Bundled syntax-friendly dataset</strong></label>
+      <select id="syntaxBundledDataset">
+        <option value="default.csv" selected>default.csv</option>
+        <option value="default2.csv">default2.csv</option>
+      </select>
+      <div class="btn-row" style="margin-top:.35rem;"><button id="btnSyntaxLoadBundled" class="btn">Load bundled CSV</button></div>
+    </div>
+    <div class="field">
+      <label for="syntaxSectionSelect"><strong>Section</strong></label>
+      <select id="syntaxSectionSelect"></select>
+    </div>
   </div>
   <div class="grid-3">
     <div class="field inline-group">
-      <label class="inline"><input id="syntaxUseDistance" type="checkbox" checked /> Infer dependencies from <code>total_distance</code> when available</label>
+      <label class="inline"><input id="syntaxUseDistance" type="checkbox" checked /> Infer head from <code>total_distance</code> (id + total_distance)</label>
     </div>
-    <div class="field"><label for="syntaxSentenceSelect"><strong>Sentence</strong></label><select id="syntaxSentenceSelect"></select></div>
-    <div class="field"><label for="syntaxRelFilter"><strong>Filter relation</strong></label><input id="syntaxRelFilter" type="text" placeholder="e.g. obj, nsubj" /></div>
-    <div class="field"><label for="syntaxPosFilter"><strong>Filter POS</strong></label><input id="syntaxPosFilter" type="text" placeholder="e.g. VERB" /></div>
+    <div class="field">
+      <label for="syntaxRelFilter"><strong>Filter relation</strong></label>
+      <input id="syntaxRelFilter" type="text" placeholder="e.g. obj, nsubj" />
+    </div>
+    <div class="field">
+      <label for="syntaxPosFilter"><strong>Filter POS</strong></label>
+      <input id="syntaxPosFilter" type="text" placeholder="e.g. v, n" />
+    </div>
   </div>
+  <div id="syntaxLoadStatus" class="status muted">No syntax dataset loaded yet.</div>
   <div class="btn-row">
     <button id="btnBuildSyntax" class="btn btn-primary">Build syntax views</button>
-    <button id="btnSyntaxSample" class="btn">Load sample</button>
+    <button id="btnSyntaxSample" class="btn">Load sample TSV</button>
     <button id="btnSyntaxExport" class="btn">Export syntax report (CSV)</button>
   </div>
 </div>
 
 <div class="card">
-  <h2>2. Syntactic outputs</h2>
+  <h2>2. Optional TSV input (manual)</h2>
+  <p class="help">Use one token per line: <code>id[TAB]form[TAB]lemma[TAB]pos[TAB]head[TAB]deprel[TAB]total_distance(optional)</code>. Separate sentences with a blank line.</p>
+  <div class="field">
+    <label for="syntaxInput"><strong>Token rows</strong></label>
+    <textarea id="syntaxInput" class="big-textarea">1	μῆνιν	μῆνις	n	2	obj	1
+2	ἄειδε	ἀείδω	v	0	root	0
+3	θεὰ	θεά	n	2	vocative	-1
+4	Πηληϊάδεω	Πηληϊάδης	n	5	nmod	1
+5	Ἀχιλῆος	Ἀχιλλεύς	n	3	appos	-2</textarea>
+  </div>
+</div>
+
+<div class="card">
+  <h2>3. Syntactic outputs</h2>
   <div id="syntaxSummary" class="analysis-wrap"></div>
   <div class="grid-2">
     <div class="viz-wrap">
