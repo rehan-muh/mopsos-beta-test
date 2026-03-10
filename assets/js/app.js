@@ -710,63 +710,49 @@
     populateVizColumns();
   }
 
-  function parseCsvFallback(text) {
-    const lines = String(text || "").split(/\r?\n/).filter(line => line.trim().length);
-    if (!lines.length) return { data: [], errors: [{ message: "CSV appears to be empty." }], meta: { fields: [] } };
+  function parseAndLoadCsv(text, fileName = "uploaded.csv", fromSaved = false) {
+    state.fileName = fileName;
+    setLoadingStatus(el.loadStatus, `Loading ${fileName} ...`);
 
-    const parseLine = (line) => {
-      const cells = [];
-      let cur = "";
-      let quoted = false;
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (quoted) {
-          if (ch === '"' && line[i + 1] === '"') { cur += '"'; i += 1; }
-          else if (ch === '"') quoted = false;
-          else cur += ch;
-        } else if (ch === ',') {
-          cells.push(cur);
-          cur = "";
-        } else if (ch === '"') {
-          quoted = true;
-        } else {
-          cur += ch;
+    Papa.parse(text, {
+      header: true,
+      skipEmptyLines: true,
+      dynamicTyping: false,
+      complete: (res) => {
+        el.loadStatus.classList.remove("loading-note");
+        const fields = res.meta?.fields || [];
+        const lfsPointer = fields.length === 1 && String(fields[0] || "").startsWith("version https://git-lfs.github.com/spec/v1");
+        if (lfsPointer) {
+          el.loadStatus.textContent = `Loaded ${fileName}, but it is a Git LFS pointer file.`;
+          status(`The selected file appears to be a Git LFS pointer and not CSV data.`);
+          return;
+        }
+        el.loadStatus.textContent = res.errors?.length ? `Loaded with ${res.errors.length} parse warning(s).` : `Loaded ${fileName}${fromSaved ? " (saved dataset)" : ""}`;
+        const rows = (res.data || []).map((r, i) => ({ ...r, _row_order: i }));
+        const cols = fields.length ? fields : (rows[0] ? Object.keys(rows[0]) : []);
+        state.rawRows = rows;
+        state.columns = cols;
+        saveClusterSource("raw_loaded", rows);
+        state.morphCols = PREFERRED_MORPH_COLS.filter(c => cols.includes(c));
+
+        if (!fromSaved && rows.length) {
+          const autoSaved = saveDataset(LAST_AUTO_SLOT);
+          if (autoSaved) el.startupSavedDatasets.value = LAST_AUTO_SLOT;
         }
       }
       cells.push(cur);
       return cells;
     };
 
-    const fields = parseLine(lines[0]).map(v => String(v || "").trim());
-    const data = [];
-    for (const line of lines.slice(1)) {
-      const values = parseLine(line);
-      const row = {};
-      for (let i = 0; i < fields.length; i++) row[fields[i]] = values[i] ?? "";
-      data.push(row);
-    }
-    return { data, errors: [], meta: { fields } };
-  }
-
-  function parseCsvText(text) {
-    return new Promise((resolve, reject) => {
-      if (window.Papa?.parse) {
-        window.Papa.parse(text, {
-          header: true,
-          skipEmptyLines: true,
-          dynamicTyping: false,
-          complete: resolve,
-          error: reject
-        });
-        return;
-      }
-      try {
-        resolve(parseCsvFallback(text));
-      } catch (err) {
-        reject(err);
-      }
-    });
-  }
+        if (!state.morphCols.length) {
+          status(`No expected morphology columns found.
+Expected any of: ${PREFERRED_MORPH_COLS.join(", ")}
+Columns present: ${cols.join(", ")}`);
+          renderTable(rows, 15);
+          updateButtonStates();
+          updateStats();
+          return;
+        }
 
   function parseAndLoadCsv(text, fileName = "uploaded.csv", fromSaved = false) {
     state.fileName = fileName;
@@ -794,7 +780,19 @@ Columns present: ${cols.join(", ")}`);
         renderTable(rows, 15);
         updateButtonStates();
         updateStats();
-        return;
+
+        const formCandidates = getFormCandidates(cols);
+        status(`Rows in analysis: ${rows.length}
+Detected columns:
+  morph: ${state.morphCols.join(", ")}
+  form candidates: ${formCandidates.length ? formCandidates.join(", ") : "(none obvious)"}
+  selected form column: ${el.formCol.value || "(none)"}`);
+        renderTable(rows, 15);
+      },
+      error: (err) => {
+        el.loadStatus.classList.remove("loading-note");
+        el.loadStatus.textContent = "Failed to parse CSV.";
+        status(`CSV parse error: ${String(err)}`);
       }
 
       state.morphOrder = [...PREFERRED_MORPH_COLS.filter(c => state.morphCols.includes(c)), ...state.morphCols.filter(c => !PREFERRED_MORPH_COLS.includes(c))];
@@ -930,7 +928,7 @@ Add the file there or update BUNDLED_DATASET_URLS in assets/js/app.js.`);
   function onFileChosen(file) {
     if (!file) return;
     setLoadingStatus(el.loadStatus, `Reading ${file.name} ...`);
-    readFileText(file)
+    file.text()
       .then(text => parseAndLoadCsv(text, file.name, false))
       .catch((err) => {
         el.loadStatus.classList.remove("loading-note");
