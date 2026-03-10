@@ -42,7 +42,7 @@
   function normalizeTokenRow(row, sid = 1) {
     const id = parseIntSafe(row.id ?? row.token_id ?? row.word_id);
     if (!Number.isFinite(id)) return null;
-    const totalDistance = parseIntSafe(row.total_distance, null);
+    const distance = parseIntSafe(row.distance ?? row.total_distance, null);
     const head = parseIntSafe(row.head, null);
     return {
       sid,
@@ -52,15 +52,15 @@
       pos: String(row.pos ?? '').trim(),
       head,
       deprel: String(row.deprel ?? row.dep_rel ?? row.relation ?? '').trim(),
-      total_distance: totalDistance
+      distance
     };
   }
 
   function applyDistanceInference(rows) {
     const byId = new Map(rows.map(r => [r.id, r]));
     for (const r of rows) {
-      if (el.syntaxUseDistance?.checked && Number.isFinite(r.total_distance) && r.total_distance !== 0) {
-        const inferredHead = r.id + r.total_distance;
+      if (el.syntaxUseDistance?.checked && Number.isFinite(r.distance) && r.distance !== 0) {
+        const inferredHead = r.id + r.distance;
         if (byId.has(inferredHead)) r.head = inferredHead;
       }
       if (!Number.isFinite(r.head)) r.head = 0;
@@ -73,7 +73,7 @@
       const rows = b.split(/\r?\n/).map(line => {
         const p = line.trim().split('\t');
         return normalizeTokenRow({
-          id: p[0], form: p[1], lemma: p[2], pos: p[3], head: p[4], deprel: p[5], total_distance: p[6]
+          id: p[0], form: p[1], lemma: p[2], pos: p[3], head: p[4], deprel: p[5], distance: p[6]
         }, bi + 1);
       }).filter(Boolean);
       applyDistanceInference(rows);
@@ -197,7 +197,7 @@
     const bucketCount = new Map();
     const categoryCount = new Map();
     for (const r of all) {
-      const dist = Number.isFinite(r.total_distance) ? r.total_distance : (Number.isFinite(r.head) ? r.head - r.id : 0);
+      const dist = Number.isFinite(r.distance) ? r.distance : (Number.isFinite(r.head) ? r.head - r.id : 0);
       const dir = dist < 0 ? 'left dependency' : (dist > 0 ? 'right dependency' : 'root/self');
       const bucket = `${dir} (${dist})`;
       bucketCount.set(bucket, (bucketCount.get(bucket) || 0) + 1);
@@ -216,15 +216,15 @@
   }
 
   function renderTable(rows) {
-    let html = '<table class="mini-table"><thead><tr><th>ID</th><th>Form</th><th>Lemma</th><th>POS</th><th>Head</th><th>Deprel</th><th>total_distance</th></tr></thead><tbody>';
-    for (const r of rows) html += `<tr><td>${r.id}</td><td>${esc(r.form)}</td><td>${esc(r.lemma)}</td><td>${esc(r.pos)}</td><td>${r.head}</td><td>${esc(r.deprel)}</td><td>${Number.isFinite(r.total_distance) ? r.total_distance : ''}</td></tr>`;
+    let html = '<table class="mini-table"><thead><tr><th>ID</th><th>Form</th><th>Lemma</th><th>POS</th><th>Head</th><th>Deprel</th><th>distance</th></tr></thead><tbody>';
+    for (const r of rows) html += `<tr><td>${r.id}</td><td>${esc(r.form)}</td><td>${esc(r.lemma)}</td><td>${esc(r.pos)}</td><td>${r.head}</td><td>${esc(r.deprel)}</td><td>${Number.isFinite(r.distance) ? r.distance : ''}</td></tr>`;
     html += '</tbody></table>';
     el.syntaxTable.innerHTML = html;
   }
 
   function toCsv(rows) {
-    const cols = ['sentence','id','form','lemma','pos','head','deprel','total_distance'];
-    return [cols.join(','), ...rows.map(r => [r.sentence,r.id,r.form,r.lemma,r.pos,r.head,r.deprel,r.total_distance ?? ''].map(v => `"${String(v??'').replace(/"/g,'""')}"`).join(','))].join('\n');
+    const cols = ['sentence','id','form','lemma','pos','head','deprel','distance'];
+    return [cols.join(','), ...rows.map(r => [r.sentence,r.id,r.form,r.lemma,r.pos,r.head,r.deprel,r.distance ?? ''].map(v => `"${String(v??'').replace(/"/g,'""')}"`).join(','))].join('\n');
   }
 
   function exportReport() {

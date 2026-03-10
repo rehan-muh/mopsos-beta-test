@@ -43,6 +43,15 @@
     scansionWordColumn: document.getElementById('scansionWordColumn'),
     scansionRegexInsensitive: document.getElementById('scansionRegexInsensitive'),
     scansionRegexUnicode: document.getElementById('scansionRegexUnicode'),
+    scansionPosFilter: document.getElementById('scansionPosFilter'),
+    scansionPersonFilter: document.getElementById('scansionPersonFilter'),
+    scansionNumberFilter: document.getElementById('scansionNumberFilter'),
+    scansionTenseFilter: document.getElementById('scansionTenseFilter'),
+    scansionMoodFilter: document.getElementById('scansionMoodFilter'),
+    scansionVoiceFilter: document.getElementById('scansionVoiceFilter'),
+    scansionGenderFilter: document.getElementById('scansionGenderFilter'),
+    scansionCaseFilter: document.getElementById('scansionCaseFilter'),
+    scansionDegreeFilter: document.getElementById('scansionDegreeFilter'),
     btnScansionApplyFilters: document.getElementById('btnScansionApplyFilters'),
     scansionSelectionSummary: document.getElementById('scansionSelectionSummary'),
     scansionSelectionTable: document.getElementById('scansionSelectionTable'),
@@ -68,7 +77,7 @@
     slotRepetitionTable: document.getElementById('slotRepetitionTable')
   };
 
-  const state = { rows: [], corpus: {}, corpusLoaded: false };
+  const state = { rows: [], corpus: {}, corpusLoaded: false, morphIndex: null };
   const norm = (s) => String(s || '').trim();
   const esc = (x) => String(x ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
@@ -247,6 +256,7 @@
   }
 
   function renderBars(results) {
+    if (!el.prosodyBars) return;
     const max = Math.max(...results.map(r => r.syllables.length), 1);
     let html = '';
     results.forEach((r, i) => {
@@ -300,6 +310,45 @@
       } catch (err) { lastErr = err; }
     }
     throw lastErr || new Error(`Could not load ${path}`);
+  }
+
+  function buildMorphIndex(rows) {
+    const byForm = new Map();
+    for (const r of rows || []) {
+      const form = normalizeGreekForMatch(r.form || r.word || r.word_text || '');
+      if (!form) continue;
+      if (!byForm.has(form)) byForm.set(form, []);
+      byForm.get(form).push(r);
+    }
+    return byForm;
+  }
+
+  function pickMostCommonValue(rows, key) {
+    const m = new Map();
+    for (const r of rows || []) {
+      const v = String(r[key] || '').trim();
+      if (!v) continue;
+      m.set(v, (m.get(v) || 0) + 1);
+    }
+    return [...m.entries()].sort((a,b)=>b[1]-a[1])[0]?.[0] || '';
+  }
+
+  function enrichWordMorph(wordText) {
+    const key = normalizeGreekForMatch(wordText || '');
+    if (!key || !state.morphIndex?.has(key)) return {};
+    const candidates = state.morphIndex.get(key);
+    return {
+      lemma: pickMostCommonValue(candidates, 'lemma'),
+      pos: pickMostCommonValue(candidates, 'pos'),
+      person: pickMostCommonValue(candidates, 'person'),
+      number: pickMostCommonValue(candidates, 'number'),
+      tense: pickMostCommonValue(candidates, 'tense'),
+      mood: pickMostCommonValue(candidates, 'mood'),
+      voice: pickMostCommonValue(candidates, 'voice'),
+      gender: pickMostCommonValue(candidates, 'gender'),
+      case: pickMostCommonValue(candidates, 'case'),
+      degree: pickMostCommonValue(candidates, 'degree')
+    };
   }
 
   function fileMatchesScope(fileName, scope) {
@@ -409,6 +458,12 @@
       el.scansionLoadStatus.textContent = `Could not load scansion files. Put CSVs in assets/data/scansion/.`;
       return;
     }
+    try {
+      const morphLoaded = await fetchCsvAny('assets/data/default.csv');
+      state.morphIndex = buildMorphIndex(morphLoaded.rows || []);
+    } catch {
+      state.morphIndex = null;
+    }
     const rowCt = Object.values(loaded).reduce((a, rows) => a + rows.length, 0);
     el.scansionLoadStatus.classList.remove('loading-note');
     el.scansionLoadStatus.textContent = `Loaded ${Object.keys(loaded).length}/${SCANSION_FILES.length} files (${rowCt} rows).${errs.length ? ` Missing: ${errs.length} file(s).` : ''}`;
@@ -440,6 +495,7 @@
     if (mode === 'regex') {
       try { return new RegExp(query, regexFlags).test(hay); } catch { return false; }
     }
+    if (mode === 'containsAll') return query.split(/\s+/).filter(Boolean).every(part => hay.includes(part));
     return hay.includes(query);
   }
 
@@ -533,7 +589,6 @@
         word_idx: String(w.word_idx || '').trim(),
         word_text: String(w.word_text || '').trim(),
         form: String(w.form || w.word_text || '').trim(),
-        lemma: String(w.lemma || w.word_text || '').trim(),
         all_quantities: String(w.all_quantities || '').trim(),
         start_foot: String(w.start_foot || '').trim(),
         end_foot: String(w.end_foot || '').trim(),
@@ -541,7 +596,17 @@
         hemis,
         hasLong,
         hasShort,
-        contains_footend: Number(w.contains_footend || 0)
+        contains_footend: Number(w.contains_footend || 0),
+        lemma: String(w.lemma || morph.lemma || '').trim(),
+        pos: String(morph.pos || '').trim(),
+        person: String(morph.person || '').trim(),
+        number: String(morph.number || '').trim(),
+        tense: String(morph.tense || '').trim(),
+        mood: String(morph.mood || '').trim(),
+        voice: String(morph.voice || '').trim(),
+        gender: String(morph.gender || '').trim(),
+        case: String(morph.case || '').trim(),
+        degree: String(morph.degree || '').trim()
       });
     }
     return out;
@@ -568,6 +633,12 @@
       if (quantity === 'short' && !r.hasShort) return false;
       const val = String(r[searchCol] ?? r.word_text ?? '');
       if (!shouldMatchWord(val, qWord, matchMode, regexFlags)) return false;
+      const morphFields = ['pos','person','number','tense','mood','voice','gender','case','degree'];
+      for (const f of morphFields) {
+        const q = String(el[`scansion${f.charAt(0).toUpperCase()}${f.slice(1)}Filter`]?.value || '').trim().toLowerCase();
+        if (!q) continue;
+        if (String(r[f] || '').trim().toLowerCase() !== q) return false;
+      }
       return true;
     });
 
@@ -953,6 +1024,7 @@
   [el.scansionBookFilter, el.scansionFootFilter, el.scansionHemiFilter, el.scansionQuantityFilter].forEach(x => x?.addEventListener('change', applySelectionFilters));
   el.scansionWordQuery?.addEventListener('input', applySelectionFilters);
   [el.scansionWordMatchMode, el.scansionWordColumn, el.scansionRegexInsensitive, el.scansionRegexUnicode].forEach(x => x?.addEventListener('change', applySelectionFilters));
+  [el.scansionPosFilter, el.scansionPersonFilter, el.scansionNumberFilter, el.scansionTenseFilter, el.scansionMoodFilter, el.scansionVoiceFilter, el.scansionGenderFilter, el.scansionCaseFilter, el.scansionDegreeFilter].forEach(x => x?.addEventListener('input', applySelectionFilters));
   el.btnProsodyRerender?.addEventListener('click', () => { renderAdvancedProsodyVisuals(state.rows); renderLineScansionBrowser(); });
   el.btnRenderLineScansion?.addEventListener('click', renderLineScansionBrowser);
   el.scansionLineScope?.addEventListener('change', renderLineScansionBrowser);

@@ -69,6 +69,7 @@ section: prosody
       <label for="scansionWordMatchMode"><strong>Word matching mode</strong></label>
       <select id="scansionWordMatchMode">
         <option value="contains" selected>Contains</option>
+        <option value="containsAll">Contains all terms</option>
         <option value="startsWith">Starts with</option>
         <option value="endsWith">Ends with</option>
         <option value="equals">Exact match</option>
@@ -93,6 +94,21 @@ section: prosody
       <button id="btnScansionApplyFilters" class="btn btn-primary">Apply selection filters</button>
     </div>
   </div>
+  <div class="grid-3">
+    <div class="field"><label for="scansionPosFilter"><strong>POS</strong></label><input id="scansionPosFilter" type="text" placeholder="e.g. v" /></div>
+    <div class="field"><label for="scansionPersonFilter"><strong>Person</strong></label><input id="scansionPersonFilter" type="text" placeholder="e.g. 3" /></div>
+    <div class="field"><label for="scansionNumberFilter"><strong>Number</strong></label><input id="scansionNumberFilter" type="text" placeholder="e.g. sg" /></div>
+  </div>
+  <div class="grid-3">
+    <div class="field"><label for="scansionTenseFilter"><strong>Tense</strong></label><input id="scansionTenseFilter" type="text" placeholder="e.g. aor" /></div>
+    <div class="field"><label for="scansionMoodFilter"><strong>Mood</strong></label><input id="scansionMoodFilter" type="text" placeholder="e.g. ind" /></div>
+    <div class="field"><label for="scansionVoiceFilter"><strong>Voice</strong></label><input id="scansionVoiceFilter" type="text" placeholder="e.g. act" /></div>
+  </div>
+  <div class="grid-3">
+    <div class="field"><label for="scansionGenderFilter"><strong>Gender</strong></label><input id="scansionGenderFilter" type="text" placeholder="e.g. masc" /></div>
+    <div class="field"><label for="scansionCaseFilter"><strong>Case</strong></label><input id="scansionCaseFilter" type="text" placeholder="e.g. nom" /></div>
+    <div class="field"><label for="scansionDegreeFilter"><strong>Degree</strong></label><input id="scansionDegreeFilter" type="text" placeholder="e.g. comp" /></div>
+  </div>
   <div id="scansionSelectionSummary" class="analysis-wrap"></div>
   <div class="viz-wrap"><h3>Filtered selection table</h3><div id="scansionSelectionTable"></div></div>
 
@@ -105,15 +121,9 @@ section: prosody
     <h3>Verse alignment (text + scansion)</h3>
     <div id="prosodyAlignment"></div>
   </div>
-  <div class="grid-2">
-    <div class="viz-wrap">
-      <h3>Syllable profile</h3>
-      <div id="prosodyBars"></div>
-    </div>
-    <div class="viz-wrap">
-      <h3>Template + caesura diagnostics</h3>
-      <div id="prosodyDiagnostics"></div>
-    </div>
+  <div class="viz-wrap">
+    <h3>Template + caesura diagnostics</h3>
+    <div id="prosodyDiagnostics"></div>
   </div>
 </div>
 

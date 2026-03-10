@@ -51,6 +51,36 @@ section: clustering
     <div class="field"><label for="clusterMinDocFreq"><strong>Min document frequency ratio</strong></label><input id="clusterMinDocFreq" type="text" value="0.00" /></div>
     <div class="field"><label for="clusterMaxDocFreq"><strong>Max document frequency ratio</strong></label><input id="clusterMaxDocFreq" type="text" value="1.00" /></div>
   </div>
+  <div class="grid-3">
+    <div class="field"><label for="clusterPosCol"><strong>POS column</strong></label><select id="clusterPosCol" disabled></select></div>
+    <div class="field"><label for="clusterPersonCol"><strong>Person column</strong></label><select id="clusterPersonCol" disabled></select></div>
+    <div class="field"><label for="clusterNumberCol"><strong>Number column</strong></label><select id="clusterNumberCol" disabled></select></div>
+  </div>
+  <div class="grid-3">
+    <div class="field"><label for="clusterTenseCol"><strong>Tense column</strong></label><select id="clusterTenseCol" disabled></select></div>
+    <div class="field"><label for="clusterMoodCol"><strong>Mood column</strong></label><select id="clusterMoodCol" disabled></select></div>
+    <div class="field"><label for="clusterVoiceCol"><strong>Voice column</strong></label><select id="clusterVoiceCol" disabled></select></div>
+  </div>
+  <div class="grid-3">
+    <div class="field"><label for="clusterGenderCol"><strong>Gender column</strong></label><select id="clusterGenderCol" disabled></select></div>
+    <div class="field"><label for="clusterCaseCol"><strong>Case column</strong></label><select id="clusterCaseCol" disabled></select></div>
+    <div class="field"><label for="clusterDegreeCol"><strong>Degree column</strong></label><select id="clusterDegreeCol" disabled></select></div>
+  </div>
+  <div class="grid-3">
+    <div class="field"><label for="clusterPosFilter"><strong>POS filter</strong></label><input id="clusterPosFilter" type="text" placeholder="e.g. v" /></div>
+    <div class="field"><label for="clusterPersonFilter"><strong>Person filter</strong></label><input id="clusterPersonFilter" type="text" placeholder="e.g. 3" /></div>
+    <div class="field"><label for="clusterNumberFilter"><strong>Number filter</strong></label><input id="clusterNumberFilter" type="text" placeholder="e.g. sg" /></div>
+  </div>
+  <div class="grid-3">
+    <div class="field"><label for="clusterTenseFilter"><strong>Tense filter</strong></label><input id="clusterTenseFilter" type="text" placeholder="e.g. aor" /></div>
+    <div class="field"><label for="clusterMoodFilter"><strong>Mood filter</strong></label><input id="clusterMoodFilter" type="text" placeholder="e.g. ind" /></div>
+    <div class="field"><label for="clusterVoiceFilter"><strong>Voice filter</strong></label><input id="clusterVoiceFilter" type="text" placeholder="e.g. act" /></div>
+  </div>
+  <div class="grid-3">
+    <div class="field"><label for="clusterGenderFilter"><strong>Gender filter</strong></label><input id="clusterGenderFilter" type="text" placeholder="e.g. masc" /></div>
+    <div class="field"><label for="clusterCaseFilter"><strong>Case filter</strong></label><input id="clusterCaseFilter" type="text" placeholder="e.g. nom" /></div>
+    <div class="field"><label for="clusterDegreeFilter"><strong>Degree filter</strong></label><input id="clusterDegreeFilter" type="text" placeholder="e.g. comp" /></div>
+  </div>
 </div>
 
 <div class="card">
