@@ -2,8 +2,8 @@
   --bg: radial-gradient(circle at 5% -10%, #c7d2fe 0, rgba(199, 210, 254, 0) 45%),
         radial-gradient(circle at 95% 0%, #bfdbfe 0, rgba(191, 219, 254, 0) 42%),
         linear-gradient(180deg, #f6f8ff 0%, #f8fafc 45%, #f4f7fb 100%);
-  --card: rgba(255, 255, 255, 0.76);
-  --card-strong: rgba(255, 255, 255, 0.92);
+  --card: rgba(255, 255, 255, 0.68);
+  --card-strong: rgba(255, 255, 255, 0.88);
   --text: #0f172a;
   --muted: #64748b;
   --line: rgba(148, 163, 184, 0.26);
@@ -20,6 +20,7 @@
 body {
   margin: 0;
   background: var(--bg);
+  background-attachment: fixed;
   color: var(--text);
   font: 16px/1.45 Inter, "Avenir Next", "Segoe UI", system-ui, sans-serif;
   position: relative;
@@ -56,15 +57,15 @@ body {
 
 .header-inner {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 1rem;
   border: 1px solid var(--line);
   background: linear-gradient(130deg, rgba(255,255,255,.82), rgba(255,255,255,.62));
   border-radius: 18px;
   padding: .75rem .95rem;
-  box-shadow: 0 8px 30px rgba(30, 41, 59, 0.1);
-  backdrop-filter: blur(14px);
+  box-shadow: 0 14px 40px rgba(30, 41, 59, 0.14);
+  backdrop-filter: blur(18px);
 }
 
 .site-brand {
@@ -94,7 +95,10 @@ body {
 .site-nav {
   display: inline-flex;
   gap: .5rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
   padding: .2rem;
   border-radius: 999px;
   background: rgba(99, 102, 241, 0.08);
@@ -130,7 +134,7 @@ code { background: #eef2ff; padding: .1rem .3rem; border-radius: 4px; }
 
 .card {
   background: var(--card);
-  border: 1px solid var(--line);
+  border: 1px solid rgba(255,255,255,0.7);
   border-radius: 16px;
   box-shadow: var(--shadow);
   padding: 1rem;
@@ -179,8 +183,6 @@ input[type="text"]:focus, select:focus {
 .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap: .8rem; }
 @media (max-width: 900px) {
   .grid-2, .grid-3, .stats-grid { grid-template-columns: 1fr; }
-  .header-inner { flex-direction: column; align-items: stretch; }
-  .site-nav { justify-content: center; }
 }
 
 .inline, .inline-group { display: inline-flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
@@ -199,7 +201,7 @@ input[type="text"]:focus, select:focus {
   font-weight: 700;
   transition: transform .2s ease, box-shadow .2s ease;
 }
-.btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 14px rgba(30, 41, 59, 0.08); }
+.btn:hover:not(:disabled) { transform: translateY(-1px) scale(1.01); box-shadow: 0 10px 20px rgba(30, 41, 59, 0.14); }
 .btn:disabled { opacity: .55; cursor: not-allowed; }
 .btn-primary { background: linear-gradient(135deg, var(--blue), var(--blue-2)); color: #fff; border-color: transparent; }
 .btn-success { background: linear-gradient(135deg, #0f766e, #14b8a6); color: #fff; border-color: transparent; }
