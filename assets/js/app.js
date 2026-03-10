@@ -974,4 +974,5 @@ Add the file there or update BUNDLED_DATASET_URLS in assets/js/app.js.`);
   renderVisualization();
   runAnalysis();
   setupZoomButtons();
+  loadBundledDefaultCsv();
 })();

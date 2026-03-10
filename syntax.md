@@ -7,7 +7,7 @@ section: syntax
 <section class="hero card">
   <p class="kicker">MOPSOS</p>
   <h1>Syntax Workbench</h1>
-  <p class="lead">Build dependency views either from tab-separated token lines or directly from CSVs that include <code>section_id</code>, <code>id</code>, and <code>total_distance</code>.</p>
+  <p class="lead">Build dependency views either from tab-separated token lines or directly from CSVs that include <code>section_id</code>, <code>id</code>, and <code>distance</code>.</p>
 </section>
 
 <div class="card">
@@ -32,7 +32,7 @@ section: syntax
   </div>
   <div class="grid-3">
     <div class="field inline-group">
-      <label class="inline"><input id="syntaxUseDistance" type="checkbox" checked /> Infer head from <code>total_distance</code> (id + total_distance)</label>
+      <label class="inline"><input id="syntaxUseDistance" type="checkbox" checked /> Infer head from <code>distance</code> (id + distance)</label>
     </div>
     <div class="field">
       <label for="syntaxRelFilter"><strong>Filter relation</strong></label>
@@ -53,7 +53,7 @@ section: syntax
 
 <div class="card">
   <h2>2. Optional TSV input (manual)</h2>
-  <p class="help">Use one token per line: <code>id[TAB]form[TAB]lemma[TAB]pos[TAB]head[TAB]deprel[TAB]total_distance(optional)</code>. Separate sentences with a blank line.</p>
+  <p class="help">Use one token per line: <code>id[TAB]form[TAB]lemma[TAB]pos[TAB]head[TAB]deprel[TAB]distance(optional)</code>. Separate sentences with a blank line.</p>
   <div class="field">
     <label for="syntaxInput"><strong>Token rows</strong></label>
     <textarea id="syntaxInput" class="big-textarea">1	μῆνιν	μῆνις	n	2	obj	1
