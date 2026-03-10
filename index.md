@@ -40,33 +40,29 @@ section: morphology
 <h2 id="sec-start">1. Start with a dataset</h2>
 
 <div class="card">
-  <div class="grid-2">
-    <div class="field">
-      <label for="startupSavedDatasets"><strong>Use an already uploaded dataset</strong></label>
-      <select id="startupSavedDatasets"></select>
-    </div>
-    <div class="field startup-actions">
-      <button id="btnStartupLoad" class="btn btn-primary" disabled>Use selected saved dataset</button>
-    </div>
-  </div>
+  <p class="help">This section is now a clean 3-path loader: <strong>bundled</strong>, <strong>saved</strong>, or <strong>upload</strong>. The selected bundled CSV auto-loads on page open.</p>
 
   <div class="grid-2">
     <div class="field">
-      <label for="bundledDatasetChoice"><strong>Bundled dataset</strong></label>
+      <label for="bundledDatasetChoice"><strong>Quick start: bundled dataset</strong></label>
       <select id="bundledDatasetChoice">
         <option value="default.csv">default.csv (Epic corpus)</option>
         <option value="default2.csv">default2.csv (Entire Greek corpus)</option>
       </select>
       <div class="help" style="margin-top:.35rem;">Direct file links: <a href="{{ '/assets/data/default.csv' | relative_url }}" target="_blank" rel="noopener">default.csv</a> · <a href="{{ '/assets/data/default2.csv' | relative_url }}" target="_blank" rel="noopener">default2.csv</a></div>
+      <div class="btn-row" style="margin-top:.45rem;"><button id="btnLoadBundled" class="btn btn-primary">Load selected bundled CSV</button></div>
     </div>
-    <div class="field startup-actions">
-      <button id="btnLoadBundled" class="btn">Load selected bundled CSV</button>
+
+    <div class="field">
+      <label for="startupSavedDatasets"><strong>Use an already saved dataset</strong></label>
+      <select id="startupSavedDatasets"></select>
+      <div class="btn-row" style="margin-top:.45rem;"><button id="btnStartupLoad" class="btn" disabled>Use selected saved dataset</button></div>
     </div>
   </div>
 
   <div class="divider">or upload a new CSV</div>
 
-  <label for="csvFile"><strong>CSV file</strong></label>
+  <label for="csvFile"><strong>Upload CSV file</strong></label>
   <input id="csvFile" type="file" accept=".csv,text/csv" />
   <div class="help">Expected columns include morphology fields such as <code>pos</code>, <code>person</code>, <code>number</code>, <code>tense</code>, <code>mood</code>, <code>voice</code>, <code>gender</code>, <code>case</code> (any subset is fine).</div>
   <div id="loadStatus" class="status muted">No file loaded yet.</div>
