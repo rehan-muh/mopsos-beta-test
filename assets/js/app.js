@@ -710,121 +710,85 @@
     populateVizColumns();
   }
 
-  function parseAndLoadCsv(text, fileName = "uploaded.csv", fromSaved = false) {
-    state.fileName = fileName;
-    setLoadingStatus(el.loadStatus, `Loading ${fileName} ...`);
-
-    Papa.parse(text, {
-      header: true,
-      skipEmptyLines: true,
-      dynamicTyping: false,
-      complete: (res) => {
-        el.loadStatus.classList.remove("loading-note");
-        const fields = res.meta?.fields || [];
-        const lfsPointer = fields.length === 1 && String(fields[0] || "").startsWith("version https://git-lfs.github.com/spec/v1");
-        if (lfsPointer) {
-          el.loadStatus.textContent = `Loaded ${fileName}, but it is a Git LFS pointer file.`;
-          status(`The selected file appears to be a Git LFS pointer and not CSV data.`);
-          return;
-        }
-        el.loadStatus.textContent = res.errors?.length ? `Loaded with ${res.errors.length} parse warning(s).` : `Loaded ${fileName}${fromSaved ? " (saved dataset)" : ""}`;
-        const rows = (res.data || []).map((r, i) => ({ ...r, _row_order: i }));
-        const cols = fields.length ? fields : (rows[0] ? Object.keys(rows[0]) : []);
-        state.rawRows = rows;
-        state.columns = cols;
-        saveClusterSource("raw_loaded", rows);
-        state.morphCols = PREFERRED_MORPH_COLS.filter(c => cols.includes(c));
-
-        if (!fromSaved && rows.length) {
-          const autoSaved = saveDataset(LAST_AUTO_SLOT);
-          if (autoSaved) el.startupSavedDatasets.value = LAST_AUTO_SLOT;
-        }
-      }
-      cells.push(cur);
-      return cells;
-    };
-
-        if (!state.morphCols.length) {
-          status(`No expected morphology columns found.
-Expected any of: ${PREFERRED_MORPH_COLS.join(", ")}
-Columns present: ${cols.join(", ")}`);
-          renderTable(rows, 15);
-          updateButtonStates();
-          updateStats();
-          return;
-        }
-
-  function parseAndLoadCsv(text, fileName = "uploaded.csv", fromSaved = false) {
-    state.fileName = fileName;
-    setLoadingStatus(el.loadStatus, `Loading ${fileName} ...`);
-
-    parseCsvText(text).then((res) => {
-      el.loadStatus.classList.remove("loading-note");
-      el.loadStatus.textContent = res.errors?.length ? `Loaded with ${res.errors.length} parse warning(s).` : `Loaded ${fileName}${fromSaved ? " (saved dataset)" : ""}`;
-      const rows = (res.data || []).map((r, i) => ({ ...r, _row_order: i }));
-      const cols = res.meta?.fields || (rows[0] ? Object.keys(rows[0]) : []);
-      state.rawRows = rows;
-      state.columns = cols;
-      saveClusterSource("raw_loaded", rows);
-      state.morphCols = PREFERRED_MORPH_COLS.filter(c => cols.includes(c));
-
-      if (!fromSaved && rows.length) {
-        const autoSaved = saveDataset(LAST_AUTO_SLOT);
-        if (autoSaved) el.startupSavedDatasets.value = LAST_AUTO_SLOT;
-      }
-
-      if (!state.morphCols.length) {
-        status(`No expected morphology columns found.
-Expected any of: ${PREFERRED_MORPH_COLS.join(", ")}
-Columns present: ${cols.join(", ")}`);
-        renderTable(rows, 15);
-        updateButtonStates();
-        updateStats();
-
-        const formCandidates = getFormCandidates(cols);
-        status(`Rows in analysis: ${rows.length}
-Detected columns:
-  morph: ${state.morphCols.join(", ")}
-  form candidates: ${formCandidates.length ? formCandidates.join(", ") : "(none obvious)"}
-  selected form column: ${el.formCol.value || "(none)"}`);
-        renderTable(rows, 15);
-      },
-      error: (err) => {
-        el.loadStatus.classList.remove("loading-note");
-        el.loadStatus.textContent = "Failed to parse CSV.";
-        status(`CSV parse error: ${String(err)}`);
-      }
-
-      state.morphOrder = [...PREFERRED_MORPH_COLS.filter(c => state.morphCols.includes(c)), ...state.morphCols.filter(c => !PREFERRED_MORPH_COLS.includes(c))];
-      state.requirePosFirst = state.morphOrder.includes("pos");
-
-      buildMorphControls();
-      populateFormColumnSelect();
-      state.dfMorph = null;
-      state.dfFinal = null;
-
-      refreshConstraintDropdowns();
-      applyDefaultsSequentially();
-      refreshConstraintDropdowns();
-      showConstraintStatus();
-      updateButtonStates();
-      updateStats();
-
-      const formCandidates = getFormCandidates(cols);
-      status(`Rows in analysis: ${rows.length}
-Detected columns:
-  morph: ${state.morphCols.join(", ")}
-  form candidates: ${formCandidates.length ? formCandidates.join(", ") : "(none obvious)"}
-  selected form column: ${el.formCol.value || "(none)"}`);
-      renderTable(rows, 15);
-    }).catch((err) => {
-      el.loadStatus.classList.remove("loading-note");
-      el.loadStatus.textContent = "Failed to parse CSV.";
-      status(`CSV parse error: ${String(err)}`);
+  function parseCsvText(text) {
+    return new Promise((resolve, reject) => {
+      Papa.parse(text, {
+        header: true,
+        skipEmptyLines: true,
+        dynamicTyping: false,
+        complete: resolve,
+        error: reject
+      });
     });
   }
 
+  function hydrateLoadedDataset(res, fileName, fromSaved = false) {
+    const fields = res.meta?.fields || [];
+    const lfsPointer = fields.length === 1 && String(fields[0] || "").startsWith("version https://git-lfs.github.com/spec/v1");
+    if (lfsPointer) {
+      el.loadStatus.textContent = `Loaded ${fileName}, but it is a Git LFS pointer file.`;
+      status(`The selected file appears to be a Git LFS pointer and not CSV data.`);
+      return false;
+    }
 
+    const rows = (res.data || []).map((r, i) => ({ ...r, _row_order: i }));
+    const cols = fields.length ? fields : (rows[0] ? Object.keys(rows[0]) : []);
+
+    state.rawRows = rows;
+    state.columns = cols;
+    state.morphCols = PREFERRED_MORPH_COLS.filter(c => cols.includes(c));
+    state.morphOrder = [...state.morphCols];
+    state.requirePosFirst = state.morphOrder.includes("pos");
+    state.dfMorph = null;
+    state.dfFinal = null;
+
+    saveClusterSource("raw_loaded", rows);
+    if (!fromSaved && rows.length) {
+      const autoSaved = saveDataset(LAST_AUTO_SLOT);
+      if (autoSaved) el.startupSavedDatasets.value = LAST_AUTO_SLOT;
+    }
+
+    buildMorphControls();
+    populateFormColumnSelect();
+    refreshConstraintDropdowns();
+    applyDefaultsSequentially();
+    refreshConstraintDropdowns();
+    updateButtonStates();
+    updateStats();
+
+    const formCandidates = getFormCandidates(cols);
+    status(`Rows in analysis: ${rows.length}
+Detected columns:
+  morph: ${state.morphCols.join(", ") || "(none)"}
+  form candidates: ${formCandidates.length ? formCandidates.join(", ") : "(none obvious)"}
+  selected form column: ${el.formCol.value || "(none)"}`);
+    renderTable(rows, 15);
+
+    if (!state.morphCols.length) {
+      status(`No expected morphology columns found.
+Expected any of: ${PREFERRED_MORPH_COLS.join(", ")}
+Columns present: ${cols.join(", ")}`);
+    } else {
+      showConstraintStatus();
+    }
+
+    el.loadStatus.textContent = res.errors?.length ? `Loaded with ${res.errors.length} parse warning(s).` : `Loaded ${fileName}${fromSaved ? " (saved dataset)" : ""}`;
+    return true;
+  }
+
+  async function parseAndLoadCsv(text, fileName = "uploaded.csv", fromSaved = false) {
+    state.fileName = fileName;
+    setLoadingStatus(el.loadStatus, `Loading ${fileName} ...`);
+    try {
+      const res = await parseCsvText(text);
+      el.loadStatus.classList.remove("loading-note");
+      hydrateLoadedDataset(res, fileName, fromSaved);
+    } catch (err) {
+      el.loadStatus.classList.remove("loading-note");
+      el.loadStatus.textContent = "Failed to parse CSV.";
+      status(`CSV parse error: ${String(err)}`);
+    }
+  }
 
   async function fetchBundledCsv(path) {
     const variants = [
@@ -974,4 +938,5 @@ Add the file there or update BUNDLED_DATASET_URLS in assets/js/app.js.`);
   renderVisualization();
   runAnalysis();
   setupZoomButtons();
+  loadBundledDefaultCsv();
 })();
